@@ -1,8 +1,6 @@
 package com.ledgermind.ledgermindbackend.user.service;
 
-import com.ledgermind.ledgermindbackend.email.dto.Bank;
 import com.ledgermind.ledgermindbackend.email.service.GmailService;
-import com.ledgermind.ledgermindbackend.email.dto.GmailScanRequest;
 import com.ledgermind.ledgermindbackend.user.entity.User;
 import com.ledgermind.ledgermindbackend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
