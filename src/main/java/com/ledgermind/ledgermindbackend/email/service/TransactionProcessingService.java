@@ -2,20 +2,20 @@ package com.ledgermind.ledgermindbackend.email.service;
 
 import com.ledgermind.ledgermindbackend.email.entity.MerchantCategoryMapping;
 import com.ledgermind.ledgermindbackend.email.entity.RawEmail;
+import com.ledgermind.ledgermindbackend.email.entity.Transaction;
 import com.ledgermind.ledgermindbackend.email.enums.Category;
 import com.ledgermind.ledgermindbackend.email.repository.MerchantCategoryMappingRepository;
 import com.ledgermind.ledgermindbackend.email.repository.RawEmailRepository;
 import com.ledgermind.ledgermindbackend.email.repository.TransactionRepository;
-import com.ledgermind.ledgermindbackend.email.entity.Transaction;
 import com.ledgermind.ledgermindbackend.telegram.dto.TelegramMessageRequest;
 import com.ledgermind.ledgermindbackend.telegram.service.TelegramService;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -30,18 +30,12 @@ public class TransactionProcessingService {
     private final TelegramService telegramService;
     private final String TELEGRAM_CHAT_ID = "1335526793";
 
-    private TransactionParser getParser(
-            RawEmail email) {
-
+    private Optional<TransactionParser> getParser(RawEmail email) {
         return parsers.stream()
                 .filter(parser -> parser.supports(email))
-                .findFirst()
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "No parser found"));
+                .findFirst();
     }
 
-    @Transactional
     public void extractAndProcessTransactions() {
         while (true) {
             List<RawEmail> emails = rawEmailRepository.findTop10ByProcessedFalseOrderByReceivedAtAsc();
@@ -50,20 +44,43 @@ public class TransactionProcessingService {
                 break;
             }
             log.info("Processing batch of {} emails", emails.size());
-            this.processTransaction(emails);
+
+            for (RawEmail email : emails) {
+                try {
+                    processSingleEmail(email);
+                } catch (Exception e) {
+                    log.error("Failed to process email id={}, marking as processed", email.getId(), e);
+                    email.setProcessed(true);
+                    rawEmailRepository.save(email);
+                }
+            }
         }
     }
 
-    public void processTransaction(List<RawEmail> emails) {
-        for (RawEmail email : emails) {
-            TransactionParser parser = getParser(email);
-            Transaction transaction = parser.parse(email);
-            Category category = categorizationService.categorize(transaction);
-            transaction.setCategory(category);
-            transactionRepository.save(transaction);
+    private void processSingleEmail(RawEmail email) {
+        Optional<TransactionParser> parser = getParser(email);
+
+        if (parser.isEmpty()) {
+            log.error("No parser found for email id={}, sender={}. Marking as processed.",
+                    email.getId(), email.getSender());
+            email.setProcessed(true);
+            rawEmailRepository.save(email);
+            return;
+        }
+
+        Transaction transaction = parser.get().parse(email);
+        Category category = categorizationService.categorize(transaction);
+        transaction.setCategory(category);
+        transactionRepository.save(transaction);
+        email.setProcessed(true);
+        rawEmailRepository.save(email);
+
+        try {
             Long messageId = telegramService.sendTransactionNotification(TELEGRAM_CHAT_ID, transaction);
             transaction.setTelegramMessageId(messageId);
-            email.setProcessed(true);
+            transactionRepository.save(transaction);
+        } catch (Exception e) {
+            log.error("Failed to send telegram notification for transaction id={}", transaction.getId(), e);
         }
     }
 
