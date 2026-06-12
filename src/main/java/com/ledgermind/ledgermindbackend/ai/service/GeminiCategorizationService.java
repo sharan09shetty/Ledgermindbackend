@@ -16,7 +16,7 @@ public class GeminiCategorizationService implements AICategorizationService {
 
     @Override
     public Category categorize(Transaction transaction) {
-        log.info("Categorizing transaction for merchant={}", transaction.getCounterparty());
+        log.debug("Categorizing transaction for merchant={}", transaction.getCounterparty());
         String response = "";
         try {
             String prompt = buildPrompt(transaction);

@@ -1,5 +1,6 @@
-package com.ledgermind.ledgermindbackend.email.entity;
+package com.ledgermind.ledgermindbackend.user.entity;
 
+import com.ledgermind.ledgermindbackend.email.entity.Bank;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -26,4 +27,13 @@ public class User {
 
     @Column(unique = true, nullable = false)
     private String telegramChatId;
+
+    private Boolean active;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "bank_code",
+            referencedColumnName = "code"
+    )
+    private Bank bank;
 }

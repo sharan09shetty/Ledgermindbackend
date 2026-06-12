@@ -1,5 +1,6 @@
 package com.ledgermind.ledgermindbackend.email.service;
 
+import com.ledgermind.ledgermindbackend.ai.service.AICategorizationService;
 import com.ledgermind.ledgermindbackend.email.entity.MerchantCategoryMapping;
 import com.ledgermind.ledgermindbackend.email.entity.Transaction;
 import com.ledgermind.ledgermindbackend.email.enums.Category;
@@ -11,20 +12,22 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class CategorizationService {
 
+    private final AICategorizationService aiCategorizationService;
     private final MerchantCategoryMappingRepository categoryMappingRepository;
 
     public Category categorize(Transaction transaction) {
-
-        String merchant = transaction.getCounterparty();
-
-        if (merchant == null || merchant.isBlank()) {
-            return Category.OTHER;
-        }
-
-        return categoryMappingRepository.findById(
-                        merchant.toUpperCase()
-                )
+        return categoryMappingRepository.findById(transaction.getCounterparty())
                 .map(MerchantCategoryMapping::getCategory)
-                .orElse(Category.OTHER);
+                .orElseGet(() -> categorizeUsingAI(transaction));
+    }
+
+    public Category categorizeUsingAI(Transaction transaction) {
+        Category category = aiCategorizationService.categorize(transaction);
+        MerchantCategoryMapping mapping = MerchantCategoryMapping.builder()
+                .merchant(transaction.getCounterparty())
+                .category(category)
+                .build();
+        categoryMappingRepository.save(mapping);
+        return category;
     }
 }

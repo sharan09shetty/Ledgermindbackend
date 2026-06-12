@@ -40,4 +40,27 @@ CREATE TABLE merchant_category_mapping (
 );
 
 alter table public.users
-add column if not exists telegram_chat_id text
+add column if not exists telegram_chat_id text;
+
+CREATE TABLE bank (
+    code VARCHAR(20) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    sender_email VARCHAR(255) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+ALTER TABLE users
+ADD COLUMN bank_code VARCHAR(20);
+
+ALTER TABLE users
+ADD CONSTRAINT fk_user_bank
+FOREIGN KEY (bank_code)
+REFERENCES bank(code);
+
+INSERT INTO bank(code, name, sender_email, active)
+VALUES
+('HDFC', 'HDFC Bank', 'alerts@hdfcbank.bank.in', true),
+('ICICI', 'ICICI Bank', 'alerts@icicibank.com', true),
+('SBI', 'State Bank of India', 'donotreply@sbibank.co.in', true);
+
+
