@@ -25,15 +25,15 @@ public class User {
     @Column(name = "last_email_sync_time")
     private LocalDateTime lastEmailSyncTime;
 
-    @Column(unique = true, nullable = false)
+    @Column(name = "telegram_chat_id", unique = true)
     private String telegramChatId;
 
     private Boolean active;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "bank_code",
-            referencedColumnName = "code"
-    )
+    @Column(name = "gmail_refresh_token", columnDefinition = "TEXT")
+    private String gmailRefreshToken;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "bank_code", referencedColumnName = "code")
     private Bank bank;
 }

@@ -7,8 +7,6 @@ import java.util.List;
 import java.util.UUID;
 
 public interface RawEmailRepository extends JpaRepository<RawEmail, UUID> {
-
     boolean existsByGmailMessageId(String gmailMessageId);
-
-    List<RawEmail> findTop10ByProcessedFalseOrderByReceivedAtAsc();
+    List<RawEmail> findTop10ByProcessedFalseAndUserIdOrderByReceivedAtAsc(UUID userId);
 }

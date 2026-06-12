@@ -19,9 +19,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
         SET u.lastEmailSyncTime = :lastEmailSyncTime
         WHERE u.id = :id
     """)
-    void updateLastEmailSyncTimeById(@Param("id") UUID id, @Param("lastEmailSyncTime") LocalDateTime lastEmailSyncTime
-    );
+    void updateLastEmailSyncTimeById(@Param("id") UUID id, @Param("lastEmailSyncTime") LocalDateTime lastEmailSyncTime);
 
     Optional<User> findByEmail(String email);
+    Optional<User> findByTelegramChatId(String telegramChatId);
     List<User> findByActiveTrue();
 }

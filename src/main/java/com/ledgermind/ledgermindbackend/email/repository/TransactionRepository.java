@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.UUID;
 
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
-    Transaction findByTelegramMessageId(Long messageId);
+    Transaction findByTelegramMessageIdAndUserId(Long telegramMessageId, UUID userId);
 }

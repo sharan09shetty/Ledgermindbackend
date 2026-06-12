@@ -63,4 +63,15 @@ VALUES
 ('ICICI', 'ICICI Bank', 'alerts@icicibank.com', true),
 ('SBI', 'State Bank of India', 'donotreply@sbibank.co.in', true);
 
+-- users: support multi-user onboarding
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS gmail_refresh_token TEXT;
+
+-- telegram_chat_id is set during onboarding (after Gmail), so it can't be NOT NULL anymore
+ALTER TABLE users
+    ALTER COLUMN telegram_chat_id DROP NOT NULL;
+
 

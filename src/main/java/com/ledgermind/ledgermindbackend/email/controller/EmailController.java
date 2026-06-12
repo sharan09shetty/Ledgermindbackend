@@ -1,46 +1,41 @@
 package com.ledgermind.ledgermindbackend.email.controller;
 
-import com.google.api.services.gmail.model.Message;
 import com.ledgermind.ledgermindbackend.email.service.GmailService;
-
 import com.ledgermind.ledgermindbackend.email.service.TransactionProcessingService;
+import com.ledgermind.ledgermindbackend.user.entity.User;
+import com.ledgermind.ledgermindbackend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
 public class EmailController {
 
     private final GmailService gmailService;
-    private final TransactionProcessingService transactionExtractionService;
+    private final TransactionProcessingService transactionProcessingService;
+    private final UserRepository userRepository;
 
-    @PostMapping("/emails/test")
-    public void testEmails() throws Exception {
-        gmailService.fetchAndSaveEmails();
+    @PostMapping("/emails/test/{userId}")
+    public void testEmails(@PathVariable UUID userId) throws Exception {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        gmailService.fetchAndSaveEmails(user);
     }
 
-    @GetMapping("/emails/test/{id}")
-    public String getEmail(@PathVariable String id) throws Exception {
-        return gmailService.fetchEmailById(id);
+    @PostMapping("/emails/test/transaction/{userId}")
+    public void processTransaction(@PathVariable UUID userId) {
+        transactionProcessingService.extractAndProcessTransactions(userId);
     }
 
-    @GetMapping("/emails/{id}")
-    public Message getEntireEmail(@PathVariable String id) throws Exception {
-        return gmailService.fetchEntireEmailById(id);
-    }
-
-    @PostMapping("/emails/test/transaction")
-    public void processTransaction(){
-        transactionExtractionService.extractAndProcessTransactions();
-    }
-
-    @PostMapping("/test")
-    public void processEndToEnd() throws Exception{
-        gmailService.fetchAndSaveEmails();
-        transactionExtractionService.extractAndProcessTransactions();
+    @PostMapping("/test/{userId}")
+    public void processEndToEnd(@PathVariable UUID userId) throws Exception {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        gmailService.fetchAndSaveEmails(user);
+        transactionProcessingService.extractAndProcessTransactions(userId);
     }
 }
