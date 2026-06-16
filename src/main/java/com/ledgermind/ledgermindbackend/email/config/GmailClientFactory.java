@@ -21,7 +21,7 @@ public class GmailClientFactory {
 
     /**
      * Builds a fresh GoogleCredential with no tokens set yet, but with the
-     * client id/secret populated from credentials.json. Used both for
+     * client id/secret. Used both for
      * refreshing existing users' tokens and for completing the OAuth callback.
      */
     public GoogleCredential newCredential() throws Exception {
