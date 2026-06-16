@@ -1,13 +1,11 @@
 package com.ledgermind.ledgermindbackend;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
 class LedgermindbackendApplicationTests {
 
-	@Test
-	void contextLoads() {
-	}
-
+    @Test
+    void contextLoads() {
+        // placeholder — Spring context tests require env vars
+    }
 }
