@@ -11,4 +11,5 @@ import org.springframework.stereotype.Component;
 @Setter
 public class TelegramProperties {
     private String botToken;
+    private String botUsername;
 }

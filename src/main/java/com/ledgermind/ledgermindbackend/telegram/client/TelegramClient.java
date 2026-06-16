@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 @FeignClient(
         name = "telegram-client",
-        url = "https://api.telegram.org"
+        url = "${telegram.api-url}"
 )
 public interface TelegramClient {
 

@@ -1,6 +1,6 @@
 package com.ledgermind.ledgermindbackend.ai.mock;
 
-import com.ledgermind.ledgermindbackend.ai.service.GeminiCategorizationService;
+import com.ledgermind.ledgermindbackend.ai.service.AICategorizationService;
 import com.ledgermind.ledgermindbackend.email.entity.Transaction;
 import com.ledgermind.ledgermindbackend.email.enums.TransactionType;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ import java.math.BigDecimal;
 @RequestMapping("/ai")
 public class MockController {
 
-    private final GeminiCategorizationService geminiCategorizationService;
+    private final AICategorizationService aiCategorizationService;
 
     @PostMapping("/test")
     public String test(@RequestParam String counterparty, @RequestParam BigDecimal amount, @RequestParam TransactionType type) {
@@ -29,6 +29,6 @@ public class MockController {
                         .transactionType(type)
                         .build();
 
-        return geminiCategorizationService.categorize(transaction).name();
+        return aiCategorizationService.categorize(transaction).name();
     }
 }

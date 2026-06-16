@@ -5,11 +5,16 @@ import com.ledgermind.ledgermindbackend.email.enums.Category;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@ConditionalOnProperty(
+        name = "ai.provider",
+        havingValue = "gemini"
+)
 public class GeminiCategorizationService implements AICategorizationService {
 
     private final ChatClient chatClient;

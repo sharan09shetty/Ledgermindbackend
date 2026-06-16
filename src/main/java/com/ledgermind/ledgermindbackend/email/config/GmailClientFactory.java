@@ -1,10 +1,12 @@
 package com.ledgermind.ledgermindbackend.email.config;
 
+import com.google.api.client.auth.oauth2.TokenResponseException;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.gmail.Gmail;
+import com.ledgermind.ledgermindbackend.email.exception.GmailReauthRequiredException;
 import com.ledgermind.ledgermindbackend.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -51,14 +53,19 @@ public class GmailClientFactory {
      */
     public Gmail buildClientFor(User user) throws Exception {
         if (user.getGmailRefreshToken() == null || user.getGmailRefreshToken().isBlank()) {
-            throw new IllegalStateException("User " + user.getId() + " has not connected Gmail");
+            throw new GmailReauthRequiredException("User " + user.getId() + " has not connected Gmail");
         }
 
         GoogleCredential credential = newCredential();
         credential.setRefreshToken(user.getGmailRefreshToken());
 
-        if (!credential.refreshToken()) {
-            throw new IllegalStateException("Failed to refresh Gmail token for user " + user.getId());
+        try {
+            if (!credential.refreshToken()) {
+                throw new GmailReauthRequiredException("Refresh token rejected for user " + user.getId());
+            }
+        } catch (TokenResponseException e) {
+            // e.g. invalid_grant - token expired (7-day testing limit) or revoked by the user
+            throw new GmailReauthRequiredException("Gmail token invalid for user " + user.getId() + ": " + e.getMessage());
         }
 
         return buildGmail(credential);

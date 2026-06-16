@@ -74,4 +74,13 @@ ALTER TABLE users
 ALTER TABLE users
     ALTER COLUMN telegram_chat_id DROP NOT NULL;
 
+-- Add telegram_message_id to transactions (needed for the cross-user fix)
+ALTER TABLE transactions
+ADD COLUMN IF NOT EXISTS telegram_message_id BIGINT;
 
+-- Index for the analytics queries - makes date-range scans fast
+CREATE INDEX IF NOT EXISTS idx_transactions_user_time
+ON transactions(user_id, transaction_time);
+
+CREATE INDEX IF NOT EXISTS idx_transactions_user_category
+ON transactions(user_id, category);
