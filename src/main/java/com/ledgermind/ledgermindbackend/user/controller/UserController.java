@@ -2,6 +2,7 @@ package com.ledgermind.ledgermindbackend.user.controller;
 
 import com.ledgermind.ledgermindbackend.email.entity.Bank;
 import com.ledgermind.ledgermindbackend.email.repository.BankRepository;
+import com.ledgermind.ledgermindbackend.security.SecurityUtils;
 import com.ledgermind.ledgermindbackend.user.dto.UserStatusResponse;
 import com.ledgermind.ledgermindbackend.user.entity.User;
 import com.ledgermind.ledgermindbackend.user.repository.UserRepository;
@@ -21,15 +22,12 @@ public class UserController {
     private final UserRepository userRepository;
     private final BankRepository bankRepository;
 
-    @PostMapping("/mock/test")
-    public void testEmails() {
-        userScanSchedulerService.triggerScans();
-    }
 
-    @PatchMapping("/{id}/bank")
-    public ResponseEntity<User> setBank(@PathVariable UUID id, @RequestParam String code) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
+    @PatchMapping("/bank")
+    public ResponseEntity<UserStatusResponse> setBank(@RequestParam String code) {
+        UUID userId = SecurityUtils.currentUserId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         Bank bank = bankRepository.findById(code.toUpperCase())
                 .orElseThrow(() -> new IllegalArgumentException("Unknown bank code: " + code));
@@ -41,20 +39,33 @@ public class UserController {
         }
 
         userRepository.save(user);
-        return ResponseEntity.ok(user);
+
+        return ResponseEntity.ok(toStatusResponse(user));
     }
 
-    @GetMapping("/{id}/status")
-    public ResponseEntity<UserStatusResponse> getStatus(@PathVariable UUID id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
+    @GetMapping("/status")
+    public ResponseEntity<UserStatusResponse> getStatus() {
+        UUID userId = SecurityUtils.currentUserId();
 
-        return ResponseEntity.ok(UserStatusResponse.builder()
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        return ResponseEntity.ok(toStatusResponse(user));
+    }
+
+    // Internal dev trigger — consider removing or restricting in production
+    @PostMapping("/mock/test")
+    public void triggerScan() {
+        userScanSchedulerService.triggerScans();
+    }
+
+    private UserStatusResponse toStatusResponse(User user) {
+        return UserStatusResponse.builder()
                 .email(user.getEmail())
                 .bankCode(user.getBank() != null ? user.getBank().getCode() : null)
                 .bankName(user.getBank() != null ? user.getBank().getName() : null)
                 .telegramLinked(user.getTelegramChatId() != null)
                 .active(Boolean.TRUE.equals(user.getActive()))
-                .build());
+                .build();
     }
 }
