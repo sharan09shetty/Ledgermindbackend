@@ -5,6 +5,7 @@ import com.google.api.services.gmail.model.*;
 import com.ledgermind.ledgermindbackend.email.config.GmailClientFactory;
 import com.ledgermind.ledgermindbackend.email.entity.RawEmail;
 import com.ledgermind.ledgermindbackend.email.repository.RawEmailRepository;
+import com.ledgermind.ledgermindbackend.queue.publisher.RawEmailSnsPublisher;
 import com.ledgermind.ledgermindbackend.user.entity.User;
 import com.ledgermind.ledgermindbackend.user.repository.UserRepository;
 import jakarta.transaction.Transactional;
@@ -30,6 +31,7 @@ public class GmailService {
     private final GmailClientFactory gmailClientFactory;
     private final RawEmailRepository rawEmailRepository;
     private final UserRepository userRepository;
+    private final RawEmailSnsPublisher snsPublisher;  // NEW
 
     @Transactional
     public void fetchAndSaveEmails(User user) throws Exception {
@@ -46,7 +48,9 @@ public class GmailService {
         String query = "from:" + user.getBank().getSenderEmail();
 
         if (lastSyncTime != null) {
-            long epochSeconds = lastSyncTime.toEpochSecond(ZoneOffset.UTC);
+            long epochSeconds = lastSyncTime.toEpochSecond(
+                    ZoneId.systemDefault().getRules().getOffset(lastSyncTime)
+            );
             query += " after:" + epochSeconds;
         }
 
@@ -103,10 +107,14 @@ public class GmailService {
         }
 
         if (!rawEmails.isEmpty()) {
-            rawEmailRepository.saveAll(rawEmails);
-            log.info("Saved {} emails for user {}", rawEmails.size(), user.getId());
+            List<RawEmail> saved = rawEmailRepository.saveAll(rawEmails);
+            log.info("Saved {} emails for user {}", saved.size(), user.getId());
+
             user.setLastEmailSyncTime(latestProcessedTime);
             userRepository.save(user);
+
+            // Publish each saved email to SNS — consumer handles processing independently
+            saved.forEach(email -> snsPublisher.publish(email, user));
         } else {
             log.info("No new emails to save for user {}", user.getId());
         }

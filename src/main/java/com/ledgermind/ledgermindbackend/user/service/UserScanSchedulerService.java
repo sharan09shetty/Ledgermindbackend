@@ -2,13 +2,11 @@ package com.ledgermind.ledgermindbackend.user.service;
 
 import com.ledgermind.ledgermindbackend.email.exception.GmailReauthRequiredException;
 import com.ledgermind.ledgermindbackend.email.service.GmailService;
-import com.ledgermind.ledgermindbackend.email.service.TransactionProcessingService;
 import com.ledgermind.ledgermindbackend.telegram.dto.TelegramMessageRequest;
 import com.ledgermind.ledgermindbackend.telegram.service.TelegramService;
 import com.ledgermind.ledgermindbackend.user.entity.User;
 import com.ledgermind.ledgermindbackend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -23,7 +21,6 @@ public class UserScanSchedulerService {
 
     private final UserRepository userRepository;
     private final GmailService gmailService;
-    private final TransactionProcessingService transactionProcessingService;
     private final TelegramService telegramService;
 
     @Value("${app.base-url}")
@@ -41,7 +38,6 @@ public class UserScanSchedulerService {
         for (User user : users) {
             try {
                 gmailService.fetchAndSaveEmails(user);
-                transactionProcessingService.extractAndProcessTransactions(user.getId());
             } catch (GmailReauthRequiredException e) {
                 log.warn("Gmail reconnection required for user {}: {}", user.getId(), e.getMessage());
                 deactivateAndNotify(user);

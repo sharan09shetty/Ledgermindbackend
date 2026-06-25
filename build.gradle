@@ -31,6 +31,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.jsoup:jsoup:1.18.3'
     implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs'
+    implementation 'software.amazon.awssdk:sns'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'org.postgresql:postgresql'
     runtimeOnly    'io.jsonwebtoken:jjwt-impl:0.12.6'
@@ -47,6 +49,7 @@ dependencyManagement {
     imports {
         mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
         mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+        mavenBom "io.awspring.cloud:spring-cloud-aws-dependencies:${awsSpringCloudVersion}"
     }
 }
 

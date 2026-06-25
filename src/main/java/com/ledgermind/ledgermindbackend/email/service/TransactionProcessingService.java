@@ -7,6 +7,7 @@ import com.ledgermind.ledgermindbackend.email.enums.Category;
 import com.ledgermind.ledgermindbackend.email.repository.MerchantCategoryMappingRepository;
 import com.ledgermind.ledgermindbackend.email.repository.RawEmailRepository;
 import com.ledgermind.ledgermindbackend.email.repository.TransactionRepository;
+import com.ledgermind.ledgermindbackend.queue.dto.RawEmailMessage;
 import com.ledgermind.ledgermindbackend.telegram.dto.TelegramMessageRequest;
 import com.ledgermind.ledgermindbackend.telegram.service.TelegramService;
 import com.ledgermind.ledgermindbackend.user.entity.User;
@@ -37,65 +38,43 @@ public class TransactionProcessingService {
         return parsers.stream().filter(p -> p.supports(email)).findFirst();
     }
 
-    public void extractAndProcessTransactions(UUID userId) {
+    public void processSingleEmail(RawEmailMessage message) {
+        RawEmail email = RawEmail.builder()
+                .id(message.rawEmailId())
+                .userId(message.userId())
+                .sender(message.sender())
+                .body(message.body())
+                .receivedAt(message.receivedAt())
+                .build();
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
-
-        while (true) {
-            List<RawEmail> emails = rawEmailRepository
-                    .findTop10ByProcessedFalseAndUserIdOrderByReceivedAtAsc(userId);
-
-            if (emails.isEmpty()) {
-                log.info("No unprocessed emails for user {}", userId);
-                break;
-            }
-
-            log.info("Processing batch of {} emails for user {}", emails.size(), userId);
-
-            for (RawEmail email : emails) {
-                try {
-                    processSingleEmail(email, user);
-                } catch (Exception e) {
-                    log.error("Failed to process email id={} for user={}, marking as processed",
-                            email.getId(), userId, e);
-                    email.setProcessed(true);
-                    rawEmailRepository.save(email);
-                }
-            }
-        }
+        processSingleEmail(email, message.telegramChatId());
     }
 
-    private void processSingleEmail(RawEmail email, User user) {
+    private void processSingleEmail(RawEmail email, String telegramChatId) {
         Optional<TransactionParser> parser = getParser(email);
 
         if (parser.isEmpty()) {
-            log.warn("No parser found for email id={}, sender={}. Marking as processed.",
-                    email.getId(), email.getSender());
-            email.setProcessed(true);
-            rawEmailRepository.save(email);
-            return;
+            log.warn("No parser found for email sender={}.", email.getSender());
+            throw new RuntimeException("No parser found for sender: " + email.getSender());
         }
 
         Transaction transaction = parser.get().parse(email);
+        transaction.setRawEmailId(email.getId());
         Category category = categorizationService.categorize(transaction);
         transaction.setCategory(category);
-
         transactionRepository.save(transaction);
-        email.setProcessed(true);
-        rawEmailRepository.save(email);
 
-        if (user.getTelegramChatId() == null) {
-            log.info("User {} has no Telegram chat linked yet, skipping notification", user.getId());
+        if (telegramChatId == null) {
+            log.info("User {} has no Telegram chat linked yet, skipping notification", email.getUserId());
             return;
         }
 
         try {
-            Long messageId = telegramService.sendTransactionNotification(user.getTelegramChatId(), transaction);
+            Long messageId = telegramService.sendTransactionNotification(telegramChatId, transaction);
             transaction.setTelegramMessageId(messageId);
             transactionRepository.save(transaction);
         } catch (Exception e) {
-            log.error("Failed to send telegram notification for transaction id={}", transaction.getId(), e);
+            log.error("Failed to send Telegram notification for transaction id={}", transaction.getId(), e);
         }
     }
 
@@ -120,9 +99,6 @@ public class TransactionProcessingService {
             return;
         }
 
-        // Scoped by userId — previously this looked up by telegramMessageId alone,
-        // which can collide across different users' chats (Telegram message IDs
-        // are sequential per-chat, not globally unique).
         Transaction transaction = transactionRepository.findByTelegramMessageIdAndUserId(messageId, user.getId());
 
         if (transaction == null) {

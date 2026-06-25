@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  localstack:
+    image: localstack/localstack:3.4
+    container_name: ledgermind-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=sns,sqs
+      - DEFAULT_REGION=ap-south-1
+      - AWS_DEFAULT_REGION=ap-south-1
+    volumes:
+      - "./localstack-init:/etc/localstack/init/ready.d"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10

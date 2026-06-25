@@ -25,17 +25,4 @@ public class EmailController {
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
         gmailService.fetchAndSaveEmails(user);
     }
-
-    @PostMapping("/emails/test/transaction/{userId}")
-    public void processTransaction(@PathVariable UUID userId) {
-        transactionProcessingService.extractAndProcessTransactions(userId);
-    }
-
-    @PostMapping("/test/{userId}")
-    public void processEndToEnd(@PathVariable UUID userId) throws Exception {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
-        gmailService.fetchAndSaveEmails(user);
-        transactionProcessingService.extractAndProcessTransactions(userId);
-    }
 }
