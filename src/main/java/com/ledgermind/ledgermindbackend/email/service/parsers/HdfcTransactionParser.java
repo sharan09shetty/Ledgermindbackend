@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -35,7 +37,7 @@ public class HdfcTransactionParser implements TransactionParser {
                 .paymentMode(determinePaymentMode(body))
                 .referenceNumber(extractReference(body))
                 .counterparty(extractCounterparty(body))
-                .transactionTime(email.getReceivedAt())
+                .transactionTime(extractTransactionTime(body, email.getReceivedAt()))
                 .created(LocalDateTime.now())
                 .build();
     }
@@ -70,6 +72,21 @@ public class HdfcTransactionParser implements TransactionParser {
                     "from\\s+(.+?)\\s+on\\s+\\d{2}-[A-Z]{3}-\\d{4}",
                     Pattern.CASE_INSENSITIVE
             );
+
+    private static final Pattern CC_MERCHANT_PATTERN =
+            Pattern.compile(
+                    "towards\\s+([A-Z0-9 _&'./-]+?)\\s+on\\s+\\d{2}\\s+[A-Za-z]{3}",
+                    Pattern.CASE_INSENSITIVE
+            );
+
+    private static final Pattern CC_TRANSACTION_TIME_PATTERN =
+            Pattern.compile(
+                    "on\\s+(\\d{1,2}\\s+[A-Za-z]{3},?\\s+\\d{4})\\s+at\\s+(\\d{2}:\\d{2}:\\d{2})",
+                    Pattern.CASE_INSENSITIVE
+            );
+
+    private static final DateTimeFormatter CC_DATE_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("d MMM[,] yyyy HH:mm:ss", Locale.ENGLISH);
 
     private TransactionType determineTransactionType(String body) {
 
@@ -158,6 +175,11 @@ public class HdfcTransactionParser implements TransactionParser {
 
     private String extractCounterparty(String body) {
 
+        Matcher ccMatcher = CC_MERCHANT_PATTERN.matcher(body);
+        if (ccMatcher.find()) {
+            return ccMatcher.group(1).trim();
+        }
+
         Matcher senderMatcher =
                 SENDER_PATTERN.matcher(body);
 
@@ -180,5 +202,19 @@ public class HdfcTransactionParser implements TransactionParser {
         }
 
         return null;
+    }
+
+    private LocalDateTime extractTransactionTime(String body, LocalDateTime fallback) {
+        Matcher matcher = CC_TRANSACTION_TIME_PATTERN.matcher(body);
+        if (matcher.find()) {
+            try {
+                String datePart = matcher.group(1).replace(",", "");
+                String timePart = matcher.group(2);
+                return LocalDateTime.parse(datePart + " " + timePart, CC_DATE_TIME_FORMATTER);
+            } catch (Exception e) {
+                log.warn("Failed to parse transaction time from body, falling back to receivedAt: {}", e.getMessage());
+            }
+        }
+        return fallback;
     }
 }
