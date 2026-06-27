@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +30,7 @@ public class GmailService {
     private final GmailClientFactory gmailClientFactory;
     private final RawEmailRepository rawEmailRepository;
     private final UserRepository userRepository;
-    private final RawEmailSnsPublisher snsPublisher;  // NEW
+    private final RawEmailSnsPublisher snsPublisher;
 
     @Transactional
     public void fetchAndSaveEmails(User user) throws Exception {
@@ -48,9 +47,7 @@ public class GmailService {
         String query = "from:" + user.getBank().getSenderEmail();
 
         if (lastSyncTime != null) {
-            long epochSeconds = lastSyncTime.toEpochSecond(
-                    ZoneId.systemDefault().getRules().getOffset(lastSyncTime)
-            );
+            long epochSeconds = lastSyncTime.plusSeconds(1).toEpochSecond(ZoneOffset.UTC);
             query += " after:" + epochSeconds;
         }
 
@@ -67,16 +64,15 @@ public class GmailService {
             return;
         }
 
-        LocalDateTime latestProcessedTime = lastSyncTime;
-        List<RawEmail> rawEmails = new ArrayList<>();
+        LocalDateTime latestReceivedAt = lastSyncTime;
+        List<RawEmail> newEmails = new ArrayList<>();
 
         for (Message message : messages) {
 
             if (rawEmailRepository.existsByGmailMessageId(message.getId())) {
-                break;
+                log.error("Skipping already-saved email gmailId={}", message.getId());
+                continue;
             }
-
-            log.info("Processing email id={} for user={}", message.getId(), user.getId());
 
             Message fullMessage = gmailClient.users()
                     .messages()
@@ -99,21 +95,21 @@ public class GmailService {
 
             LocalDateTime receivedAt = convertToLocalDateTime(fullMessage.getInternalDate());
 
-            rawEmails.add(buildRawEmailEntity(user.getId(), message.getId(), subject, sender, body, receivedAt));
+            newEmails.add(buildRawEmailEntity(user.getId(), message.getId(), subject, sender, body, receivedAt));
 
-            if (latestProcessedTime == null || receivedAt.isAfter(latestProcessedTime)) {
-                latestProcessedTime = receivedAt;
+            if (latestReceivedAt == null || receivedAt.isAfter(latestReceivedAt)) {
+                latestReceivedAt = receivedAt;
             }
         }
 
-        if (!rawEmails.isEmpty()) {
-            List<RawEmail> saved = rawEmailRepository.saveAll(rawEmails);
-            log.info("Saved {} emails for user {}", saved.size(), user.getId());
-
-            user.setLastEmailSyncTime(latestProcessedTime);
+        if (latestReceivedAt != null && !latestReceivedAt.equals(lastSyncTime)) {
+            user.setLastEmailSyncTime(latestReceivedAt);
             userRepository.save(user);
+        }
 
-            // Publish each saved email to SNS — consumer handles processing independently
+        if (!newEmails.isEmpty()) {
+            List<RawEmail> saved = rawEmailRepository.saveAll(newEmails);
+            log.info("Saved {} new emails for user {}", saved.size(), user.getId());
             saved.forEach(email -> snsPublisher.publish(email, user));
         } else {
             log.info("No new emails to save for user {}", user.getId());
@@ -128,12 +124,11 @@ public class GmailService {
                 .sender(sender)
                 .body(body)
                 .receivedAt(receivedAt)
-                .processed(false)
                 .build();
     }
 
     private LocalDateTime convertToLocalDateTime(Long epochMillis) {
-        return LocalDateTime.ofInstant(Instant.ofEpochMilli(epochMillis), ZoneId.systemDefault());
+        return LocalDateTime.ofInstant(Instant.ofEpochMilli(epochMillis), ZoneOffset.UTC);
     }
 
     private boolean isTransactionEmail(String body) {
