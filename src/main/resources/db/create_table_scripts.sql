@@ -84,3 +84,5 @@ ON transactions(user_id, transaction_time);
 
 CREATE INDEX IF NOT EXISTS idx_transactions_user_category
 ON transactions(user_id, category);
+
+ALTER TABLE transactions ALTER COLUMN raw_email_id DROP NOT NULL;
