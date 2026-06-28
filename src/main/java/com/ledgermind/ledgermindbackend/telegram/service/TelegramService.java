@@ -3,6 +3,7 @@ package com.ledgermind.ledgermindbackend.telegram.service;
 import com.ledgermind.ledgermindbackend.email.entity.Transaction;
 import com.ledgermind.ledgermindbackend.telegram.client.TelegramClient;
 import com.ledgermind.ledgermindbackend.telegram.config.TelegramProperties;
+import com.ledgermind.ledgermindbackend.telegram.dto.TelegramChatActionRequest;
 import com.ledgermind.ledgermindbackend.telegram.dto.TelegramMessageRequest;
 import com.ledgermind.ledgermindbackend.telegram.dto.TelegramSendMessageResponse;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,23 @@ public class TelegramService {
         TelegramSendMessageResponse response = telegramClient.sendMessage(telegramProperties.getBotToken(), request);
         log.info("Telegram message sent to chatId={}", request.chat_id());
         return response.getResult().getMessageId();
+    }
+
+    /**
+     * Shows a "typing..." indicator in Telegram while Gemini is processing.
+     * Fire-and-forget — failure is non-fatal.
+     */
+    public void sendChatAction(Long chatId, String action) {
+        try {
+            telegramClient.sendChatAction(
+                    telegramProperties.getBotToken(),
+                    TelegramChatActionRequest.builder()
+                            .chat_id(chatId.toString())
+                            .action(action)
+                            .build());
+        } catch (Exception e) {
+            log.warn("Failed to send chat action '{}' to chatId={}: {}", action, chatId, e.getMessage());
+        }
     }
 
     public Long sendTransactionNotification(String chatId, Transaction transaction) {

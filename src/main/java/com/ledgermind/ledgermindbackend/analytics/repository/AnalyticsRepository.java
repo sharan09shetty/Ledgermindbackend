@@ -14,106 +14,101 @@ import java.util.UUID;
 
 public interface AnalyticsRepository extends JpaRepository<Transaction, UUID> {
 
-    // ── Summary ──────────────────────────────────────────────────────────────
 
-    @Query("""
-                SELECT COALESCE(SUM(t.amount), 0)
-                FROM Transaction t
-                WHERE t.userId = :userId
-                  AND t.transactionType = 'DEBIT'
-                  AND t.transactionTime BETWEEN :from AND :to
-            """)
+    @Query(value = """
+                SELECT COALESCE(SUM(amount), 0)
+                FROM transactions
+                WHERE user_id = :userId
+                  AND transaction_type = 'DEBIT'
+                  AND transaction_time BETWEEN :from AND :to
+            """, nativeQuery = true)
     BigDecimal sumDebits(@Param("userId") UUID userId,
                          @Param("from") LocalDateTime from,
                          @Param("to") LocalDateTime to);
 
-    @Query("""
-                SELECT COALESCE(SUM(t.amount), 0)
-                FROM Transaction t
-                WHERE t.userId = :userId
-                  AND t.transactionType = 'CREDIT'
-                  AND t.transactionTime BETWEEN :from AND :to
-            """)
+    @Query(value = """
+                SELECT COALESCE(SUM(amount), 0)
+                FROM transactions
+                WHERE user_id = :userId
+                  AND transaction_type = 'CREDIT'
+                  AND transaction_time BETWEEN :from AND :to
+            """, nativeQuery = true)
     BigDecimal sumCredits(@Param("userId") UUID userId,
                           @Param("from") LocalDateTime from,
                           @Param("to") LocalDateTime to);
 
-    @Query("""
-                SELECT COUNT(t)
-                FROM Transaction t
-                WHERE t.userId = :userId
-                  AND t.transactionTime BETWEEN :from AND :to
-            """)
+    @Query(value = """
+                SELECT COUNT(*)
+                FROM transactions
+                WHERE user_id = :userId
+                  AND transaction_time BETWEEN :from AND :to
+            """, nativeQuery = true)
     long countTransactions(@Param("userId") UUID userId,
                            @Param("from") LocalDateTime from,
                            @Param("to") LocalDateTime to);
 
-    // Returns [category, total] — pick first row for topCategory
-    @Query("""
-                SELECT t.category, SUM(t.amount)
-                FROM Transaction t
-                WHERE t.userId = :userId
-                  AND t.transactionType = 'DEBIT'
-                  AND t.category IS NOT NULL
-                  AND t.transactionTime BETWEEN :from AND :to
-                GROUP BY t.category
-                ORDER BY SUM(t.amount) DESC
-            """)
+    @Query(value = """
+                SELECT category, SUM(amount)
+                FROM transactions
+                WHERE user_id = :userId
+                  AND transaction_type = 'DEBIT'
+                  AND category IS NOT NULL
+                  AND transaction_time BETWEEN :from AND :to
+                GROUP BY category
+                ORDER BY SUM(amount) DESC
+            """, nativeQuery = true)
     List<Object[]> topCategoryRaw(@Param("userId") UUID userId,
                                   @Param("from") LocalDateTime from,
                                   @Param("to") LocalDateTime to);
 
-    // Returns [counterparty, total] — pick first row for topMerchant
-    @Query("""
-                SELECT t.counterparty, SUM(t.amount)
-                FROM Transaction t
-                WHERE t.userId = :userId
-                  AND t.transactionType = 'DEBIT'
-                  AND t.counterparty IS NOT NULL
-                  AND t.transactionTime BETWEEN :from AND :to
-                GROUP BY t.counterparty
-                ORDER BY SUM(t.amount) DESC
-            """)
+    @Query(value = """
+                SELECT counterparty, SUM(amount)
+                FROM transactions
+                WHERE user_id = :userId
+                  AND transaction_type = 'DEBIT'
+                  AND counterparty IS NOT NULL
+                  AND transaction_time BETWEEN :from AND :to
+                GROUP BY counterparty
+                ORDER BY SUM(amount) DESC
+            """, nativeQuery = true)
     List<Object[]> topMerchantRaw(@Param("userId") UUID userId,
                                   @Param("from") LocalDateTime from,
                                   @Param("to") LocalDateTime to);
 
     // ── Monthly breakdown ─────────────────────────────────────────────────────
 
-    @Query("""
-            SELECT
-                EXTRACT(YEAR FROM t.transactionTime),
-                EXTRACT(MONTH FROM t.transactionTime),
-                t.transactionType,
-                SUM(t.amount),
-                COUNT(t)
-            FROM Transaction t
-            WHERE t.userId = :userId
-              AND t.transactionTime BETWEEN :from AND :to
-            GROUP BY
-                EXTRACT(YEAR FROM t.transactionTime),
-                EXTRACT(MONTH FROM t.transactionTime),
-                t.transactionType
-            ORDER BY
-                EXTRACT(YEAR FROM t.transactionTime),
-                EXTRACT(MONTH FROM t.transactionTime)
-            """)
+    @Query(value = """
+                SELECT
+                    EXTRACT(YEAR FROM transaction_time) AS year,
+                    EXTRACT(MONTH FROM transaction_time) AS month,
+                    transaction_type,
+                    SUM(amount) AS total,
+                    COUNT(*) AS txn_count
+                FROM transactions
+                WHERE user_id = :userId
+                  AND transaction_time BETWEEN :from AND :to
+                GROUP BY
+                    EXTRACT(YEAR FROM transaction_time),
+                    EXTRACT(MONTH FROM transaction_time),
+                    transaction_type
+                ORDER BY year, month
+            """, nativeQuery = true)
     List<Object[]> monthlyRaw(@Param("userId") UUID userId,
                               @Param("from") LocalDateTime from,
                               @Param("to") LocalDateTime to);
 
     // ── Category breakdown ────────────────────────────────────────────────────
 
-    @Query("""
-                SELECT t.category, SUM(t.amount), COUNT(t)
-                FROM Transaction t
-                WHERE t.userId = :userId
-                  AND t.transactionType = 'DEBIT'
-                  AND t.category IS NOT NULL
-                  AND t.transactionTime BETWEEN :from AND :to
-                GROUP BY t.category
-                ORDER BY SUM(t.amount) DESC
-            """)
+    @Query(value = """
+                SELECT category, SUM(amount) AS total, COUNT(*) AS txn_count
+                FROM transactions
+                WHERE user_id = :userId
+                  AND transaction_type = 'DEBIT'
+                  AND category IS NOT NULL
+                  AND transaction_time BETWEEN :from AND :to
+                GROUP BY category
+                ORDER BY total DESC
+            """, nativeQuery = true)
     List<Object[]> categoryBreakdownRaw(@Param("userId") UUID userId,
                                         @Param("from") LocalDateTime from,
                                         @Param("to") LocalDateTime to);
@@ -128,7 +123,7 @@ public interface AnalyticsRepository extends JpaRepository<Transaction, UUID> {
                     (
                         SELECT t2.category
                         FROM transactions t2
-                        WHERE t2.user_id = :#{#userId}
+                        WHERE t2.user_id = :userId
                           AND t2.counterparty = t.counterparty
                           AND t2.transaction_type = 'DEBIT'
                           AND t2.transaction_time BETWEEN :from AND :to
@@ -138,7 +133,7 @@ public interface AnalyticsRepository extends JpaRepository<Transaction, UUID> {
                         LIMIT 1
                     ) AS top_category
                 FROM transactions t
-                WHERE t.user_id = :#{#userId}
+                WHERE t.user_id = :userId
                   AND t.transaction_type = 'DEBIT'
                   AND t.counterparty IS NOT NULL
                   AND t.transaction_time BETWEEN :from AND :to
@@ -152,17 +147,28 @@ public interface AnalyticsRepository extends JpaRepository<Transaction, UUID> {
                                         @Param("limit") int limit);
 
     // ── Transaction list (paginated + filtered) ───────────────────────────────
-
-    @Query("""
-                SELECT t FROM Transaction t
-                WHERE t.userId = :userId
-                  AND t.transactionTime BETWEEN :from AND :to
-                  AND (:category IS NULL OR CAST(t.category AS string) = :category)
-                  AND (:transactionType IS NULL OR CAST(t.transactionType AS string) = :transactionType)
-                  AND (:paymentMode IS NULL OR CAST(t.paymentMode AS string) = :paymentMode)
-                  AND (:counterparty IS NULL OR LOWER(t.counterparty) LIKE LOWER(CONCAT('%', :counterparty, '%')))
-                ORDER BY t.transactionTime DESC
-            """)
+    @Query(value = """
+                SELECT *
+                FROM transactions
+                WHERE user_id = :userId
+                  AND transaction_time BETWEEN :from AND :to
+                  AND (:category IS NULL OR category = :category)
+                  AND (:transactionType IS NULL OR transaction_type = :transactionType)
+                  AND (:paymentMode IS NULL OR payment_mode = :paymentMode)
+                  AND (:counterparty IS NULL OR counterparty ILIKE CONCAT('%', :counterparty, '%'))
+                ORDER BY transaction_time DESC
+            """,
+            countQuery = """
+                SELECT COUNT(*)
+                FROM transactions
+                WHERE user_id = :userId
+                  AND transaction_time BETWEEN :from AND :to
+                  AND (:category IS NULL OR category = :category)
+                  AND (:transactionType IS NULL OR transaction_type = :transactionType)
+                  AND (:paymentMode IS NULL OR payment_mode = :paymentMode)
+                  AND (:counterparty IS NULL OR counterparty ILIKE CONCAT('%', :counterparty, '%'))
+            """,
+            nativeQuery = true)
     Page<Transaction> findFiltered(
             @Param("userId") UUID userId,
             @Param("from") LocalDateTime from,

@@ -1,5 +1,6 @@
 package com.ledgermind.ledgermindbackend.telegram.client;
 
+import com.ledgermind.ledgermindbackend.telegram.dto.TelegramChatActionRequest;
 import com.ledgermind.ledgermindbackend.telegram.dto.TelegramMessageRequest;
 import com.ledgermind.ledgermindbackend.telegram.dto.TelegramSendMessageResponse;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -17,5 +18,11 @@ public interface TelegramClient {
     TelegramSendMessageResponse sendMessage(
             @PathVariable("token") String token,
             @RequestBody TelegramMessageRequest request
+    );
+
+    @PostMapping("/bot{token}/sendChatAction")
+    void sendChatAction(
+            @PathVariable("token") String token,
+            @RequestBody TelegramChatActionRequest request
     );
 }

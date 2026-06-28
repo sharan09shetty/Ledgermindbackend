@@ -40,8 +40,10 @@ public class Transaction {
     @Enumerated(EnumType.STRING)
     private Category category;
 
+    @Column(columnDefinition = "varchar")
     private String counterparty;
 
+    @Column(columnDefinition = "varchar")
     private String referenceNumber;
 
     private Long telegramMessageId;
