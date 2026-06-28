@@ -30,10 +30,6 @@ public class TelegramWebhookController {
     private final FinancialAdvisorService financialAdvisorService;
     private final CashTransactionParser cashTransactionParser;
 
-    private static final String ASK_PREFIX = "/ask";
-    private static final String LOG_PREFIX = "/log";
-
-    // Tracks which chatIds are waiting for /ask input and /log input
     private final ConcurrentHashMap<Long, Boolean> awaitingQuestion = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Boolean> awaitingCashLog = new ConcurrentHashMap<>();
 
@@ -47,70 +43,33 @@ public class TelegramWebhookController {
 
         if (text == null) return ResponseEntity.ok().build();
 
-        // /start <userId>
         if (text.startsWith("/start")) {
             handleStart(chatId, text);
             return ResponseEntity.ok().build();
         }
 
-        // /ask <question> or /ask alone
-        if (text.startsWith(ASK_PREFIX)) {
-            String question = text.substring(ASK_PREFIX.length()).trim();
-            if (question.isEmpty()) {
-                awaitingQuestion.put(chatId, true);
-                sendReplyMessage(chatId, "What would you like to know about your finances?");
-            } else {
-                handleAsk(chatId, question);
-            }
-            return ResponseEntity.ok().build();
-        }
-
-        // /log alone (from menu) or /log <description>
-        if (text.startsWith(LOG_PREFIX)) {
-            String description = text.substring(LOG_PREFIX.length()).trim();
+        if (text.startsWith("/log")) {
+            String description = text.substring("/log".length()).trim();
             if (description.isEmpty()) {
-                awaitingCashLog.put(chatId, true);
-                sendReplyMessage(chatId, """
-                        Describe your cash transaction naturally:
-                        
-                        e.g. "spent 200 on auto" or "paid 500 at medical shop" or "received 1000 from Rahul"
-                        """);
+                sendReplyMessage(chatId, "Describe your cash transaction:\ne.g. \"spent 200 on auto\" or \"received 1000 from Rahul\"");
             } else {
                 handleCashLog(chatId, description);
             }
             return ResponseEntity.ok().build();
         }
 
-        // Awaiting /ask follow-up
-        if (awaitingQuestion.getOrDefault(chatId, false)) {
-            awaitingQuestion.remove(chatId);
-            handleAsk(chatId, text);
+        if (text.startsWith("/forget")) {
+            handleForget(chatId);
             return ResponseEntity.ok().build();
         }
 
-        // Awaiting /log follow-up
-        if (awaitingCashLog.getOrDefault(chatId, false)) {
-            awaitingCashLog.remove(chatId);
-            handleCashLog(chatId, text);
-            return ResponseEntity.ok().build();
-        }
-
-        // Reply to a transaction — category correction
         if (update.getMessage().getReplyToMessage() != null) {
             Long repliedMessageId = update.getMessage().getReplyToMessage().getMessageId();
-            log.info("Received category correction reply to messageId={}", repliedMessageId);
             transactionProcessingService.updateTransactionCategory(chatId, repliedMessageId, text);
             return ResponseEntity.ok().build();
         }
 
-        // Fallback
-        sendReplyMessage(chatId, """
-                Here's what you can do:
-                • /ask — ask anything about your finances
-                • /log — log a cash transaction
-                • Reply to any transaction message to correct its category
-                """);
-
+        handleAsk(chatId, text);
         return ResponseEntity.ok().build();
     }
 
@@ -121,7 +80,12 @@ public class TelegramWebhookController {
             return;
         }
         telegramService.sendChatAction(chatId, "typing");
-        String response = financialAdvisorService.ask(userOpt.get().getId(), question);
+        String response = financialAdvisorService.ask(chatId, userOpt.get().getId(), question);
+        if (response == null || response.isBlank()) {
+            log.warn("[Advisor] Empty response for chatId={} question={}", chatId, question);
+            sendReplyMessage(chatId, "Sorry, I couldn't generate a response. Please try rephrasing your question.");
+            return;
+        }
         sendReplyMessage(chatId, response);
     }
 
@@ -181,6 +145,11 @@ public class TelegramWebhookController {
         userRepository.save(user);
 
         sendReplyMessage(chatId, "Telegram linked! You'll get transaction notifications here.\n\nUse /ask to query your finances or /log to record a cash transaction.");
+    }
+
+    private void handleForget(Long chatId) {
+        financialAdvisorService.clearMemory(chatId);
+        sendReplyMessage(chatId, "Conversation history cleared. Starting fresh!");
     }
 
     public void sendReplyMessage(Long chatId, String text) {

@@ -1,11 +1,17 @@
 package com.ledgermind.ledgermindbackend.telegram.advisor;
 
+import com.ledgermind.ledgermindbackend.telegram.advisor.RedisChatMemoryStore.ChatMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -15,6 +21,7 @@ public class FinancialAdvisorService {
 
     private final ChatClient chatClient;
     private final FinancialAdvisorTools financialAdvisorTools;
+    private final RedisChatMemoryStore memoryStore;
 
     private static final String SYSTEM_PROMPT = """
             You are a personal finance assistant for an Indian user.
@@ -43,28 +50,63 @@ public class FinancialAdvisorService {
             - Format currency as ₹X,XXX (e.g. ₹1,500 not 1500.00).
             - If no data is found for the requested period, say so clearly.
             - Never make up transaction data. Only answer from tool results.
+            - You have access to the conversation history above. Use it to resolve
+              follow-up questions like "what about last month?" or "show me more details".
+            - If you cannot answer or need to call a tool, call the tool immediately.
+              NEVER say "I'm fetching", "just a moment", or "let me check" — just respond with the result.
+            - If a tool returns no data, say "I couldn't find any transactions for that period."
             """;
 
-    public String ask(UUID userId, String question) {
-        log.info("[FinancialAdvisor] userId={} question={}", userId, question);
+    public String ask(Long chatId, UUID userId, String question) {
+        log.info("[FinancialAdvisor] chatId={} userId={} question={}", chatId, userId, question);
+
         FinancialAdvisorTools tools = financialAdvisorTools.forUser(userId);
 
         try {
             String systemPrompt = SYSTEM_PROMPT.formatted(LocalDate.now());
 
+            List<ChatMessage> history = memoryStore.load(chatId);
+            List<Message> messages = toSpringAiMessages(history);
+
+            messages.add(new UserMessage(question));
+
             String response = chatClient.prompt()
                     .system(systemPrompt)
-                    .user(question)
+                    .messages(messages)
                     .tools(tools)
                     .call()
                     .content();
 
-            log.info("[FinancialAdvisor] userId={} response={}", userId, response);
+            log.info("[FinancialAdvisor] chatId={} response={}", chatId, response);
+
+            history.add(new ChatMessage("user", question));
+            history.add(new ChatMessage("assistant", response));
+            memoryStore.save(chatId, history);
+
             return response;
 
         } catch (Exception e) {
-            log.error("[FinancialAdvisor] Failed to process question for userId={}", userId, e);
+            log.error("[FinancialAdvisor] Failed to process question for chatId={} userId={}", chatId, userId, e);
             return "Sorry, I ran into an issue fetching your data. Please try again in a moment.";
         }
+    }
+
+    /**
+     * Clears conversation history — called when user sends /forget
+     */
+    public void clearMemory(Long chatId) {
+        memoryStore.clear(chatId);
+    }
+
+    private List<Message> toSpringAiMessages(List<ChatMessage> history) {
+        List<Message> messages = new ArrayList<>();
+        for (ChatMessage msg : history) {
+            if ("user".equals(msg.role())) {
+                messages.add(new UserMessage(msg.content()));
+            } else if ("assistant".equals(msg.role())) {
+                messages.add(new AssistantMessage(msg.content()));
+            }
+        }
+        return messages;
     }
 }

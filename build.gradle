@@ -29,6 +29,7 @@ dependencies {
     implementation 'com.google.apis:google-api-services-gmail:v1-rev20240520-2.0.0'
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.jsoup:jsoup:1.18.3'
     implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
     implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs'
