@@ -9,7 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.Collections;
+import java.util.Set;
 
 @Configuration
 public class GmailConfig {
@@ -39,7 +39,7 @@ public class GmailConfig {
                 GoogleNetHttpTransport.newTrustedTransport(),
                 GsonFactory.getDefaultInstance(),
                 clientSecrets,
-                Collections.singleton(GmailScopes.GMAIL_READONLY)
+                Set.of(GmailScopes.GMAIL_READONLY, "https://www.googleapis.com/auth/userinfo.profile")
         )
                 .setAccessType("offline")
                 .build();

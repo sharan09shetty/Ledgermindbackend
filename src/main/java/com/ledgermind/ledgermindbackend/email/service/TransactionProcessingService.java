@@ -4,6 +4,8 @@ import com.ledgermind.ledgermindbackend.email.entity.MerchantCategoryMapping;
 import com.ledgermind.ledgermindbackend.email.entity.RawEmail;
 import com.ledgermind.ledgermindbackend.email.entity.Transaction;
 import com.ledgermind.ledgermindbackend.email.enums.Category;
+import com.ledgermind.ledgermindbackend.email.enums.PaymentMode;
+import com.ledgermind.ledgermindbackend.email.enums.TransactionType;
 import com.ledgermind.ledgermindbackend.email.repository.MerchantCategoryMappingRepository;
 import com.ledgermind.ledgermindbackend.email.repository.RawEmailRepository;
 import com.ledgermind.ledgermindbackend.email.repository.TransactionRepository;
@@ -14,8 +16,12 @@ import com.ledgermind.ledgermindbackend.user.entity.User;
 import com.ledgermind.ledgermindbackend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -120,5 +126,100 @@ public class TransactionProcessingService {
                 .chat_id(chatId.toString())
                 .text("Category for transaction with " + transaction.getCounterparty() + " updated to " + category)
                 .build());
+    }
+
+    /**
+     * Creates a transaction entered manually by the user (as opposed to one
+     * parsed from an email). Unrecognized enum values fall back to sane
+     * defaults rather than failing the request, matching the previous
+     * controller behavior.
+     */
+    public Transaction createManualTransaction(UUID userId, BigDecimal amount, String transactionTypeRaw,
+                                               String categoryRaw, String counterparty, String paymentModeRaw,
+                                               String transactionTimeRaw) {
+
+        TransactionType type = parseEnumOrDefault(TransactionType.class, transactionTypeRaw, TransactionType.DEBIT);
+        Category category = parseEnumOrDefault(Category.class, categoryRaw, Category.OTHER);
+        PaymentMode paymentMode = parseEnumOrDefault(PaymentMode.class, paymentModeRaw, PaymentMode.UNKNOWN);
+
+        LocalDateTime transactionTime;
+        try {
+            transactionTime = transactionTimeRaw != null
+                    ? LocalDateTime.parse(transactionTimeRaw)
+                    : LocalDateTime.now();
+        } catch (Exception e) {
+            transactionTime = LocalDateTime.now();
+        }
+
+        Transaction transaction = Transaction.builder()
+                .userId(userId)
+                .amount(amount)
+                .transactionType(type)
+                .paymentMode(paymentMode)
+                .category(category)
+                .counterparty(counterparty)
+                .transactionTime(transactionTime)
+                .created(LocalDateTime.now())
+                .build();
+
+        return transactionRepository.save(transaction);
+    }
+
+    /**
+     * Applies a partial update to an existing transaction (e.g. from the UI's
+     * edit-transaction screen). Only non-blank fields are updated; the rest
+     * of the transaction is left untouched. Unlike manual creation, invalid
+     * enum values here are rejected with a 400 rather than silently
+     * defaulted, since this is a deliberate user edit.
+     */
+    public Transaction updateTransaction(UUID userId, UUID transactionId, String counterparty,
+                                         String paymentModeRaw, String categoryRaw) {
+
+        Transaction transaction = transactionRepository.findByIdAndUserId(transactionId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Transaction not found: " + transactionId));
+
+        if (counterparty != null && !counterparty.isBlank()) {
+            transaction.setCounterparty(counterparty.trim());
+        }
+
+        if (paymentModeRaw != null && !paymentModeRaw.isBlank()) {
+            transaction.setPaymentMode(parseEnumStrict(PaymentMode.class, paymentModeRaw));
+        }
+
+        if (categoryRaw != null && !categoryRaw.isBlank()) {
+            Category category = parseEnumStrict(Category.class, categoryRaw);
+            transaction.setCategory(category);
+        }
+
+        Transaction saved = transactionRepository.save(transaction);
+        log.info("Updated transaction id={} (user={})", saved.getId(), userId);
+        return saved;
+    }
+
+    public void deleteTransaction(UUID transactionId) {
+        transactionRepository.deleteById(transactionId);
+        log.info("Deleted transaction id={})", transactionId);
+    }
+
+    private <E extends Enum<E>> E parseEnumOrDefault(Class<E> enumClass, String raw, E fallback) {
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+        try {
+            return Enum.valueOf(enumClass, raw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return fallback;
+        }
+    }
+
+    private <E extends Enum<E>> E parseEnumStrict(Class<E> enumClass, String raw) {
+        try {
+            return Enum.valueOf(enumClass, raw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid value '" + raw + "' for " + enumClass.getSimpleName()
+                            + ". Allowed values: " + Arrays.toString(enumClass.getEnumConstants()));
+        }
     }
 }

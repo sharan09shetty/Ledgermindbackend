@@ -6,14 +6,12 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.services.gmail.Gmail;
 import com.ledgermind.ledgermindbackend.email.config.GmailClientFactory;
 import com.ledgermind.ledgermindbackend.security.JwtService;
-import com.ledgermind.ledgermindbackend.telegram.config.TelegramProperties;
 import com.ledgermind.ledgermindbackend.user.entity.User;
 import com.ledgermind.ledgermindbackend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 

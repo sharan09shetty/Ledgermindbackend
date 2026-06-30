@@ -2,20 +2,13 @@ package com.ledgermind.ledgermindbackend.email.controller;
 
 import com.ledgermind.ledgermindbackend.analytics.dto.TransactionResponse;
 import com.ledgermind.ledgermindbackend.email.entity.Transaction;
-import com.ledgermind.ledgermindbackend.email.enums.Category;
-import com.ledgermind.ledgermindbackend.email.enums.PaymentMode;
-import com.ledgermind.ledgermindbackend.email.enums.TransactionType;
-import com.ledgermind.ledgermindbackend.email.repository.TransactionRepository;
+import com.ledgermind.ledgermindbackend.email.service.TransactionProcessingService;
 import com.ledgermind.ledgermindbackend.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @RestController
@@ -23,7 +16,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TransactionController {
 
-    private final TransactionRepository transactionRepository;
+    private final TransactionProcessingService transactionProcessingService;
 
     @PostMapping("/manual")
     public ResponseEntity<TransactionResponse> logManual(
@@ -31,58 +24,52 @@ public class TransactionController {
 
         UUID userId = SecurityUtils.currentUserId();
 
-        Category category;
-        try {
-            category = Category.valueOf(request.category().trim().toUpperCase());
-        } catch (Exception e) {
-            category = Category.OTHER;
-        }
+        Transaction saved = transactionProcessingService.createManualTransaction(
+                userId,
+                request.amount(),
+                request.transactionType(),
+                request.category(),
+                request.counterparty(),
+                request.paymentMode(),
+                request.transactionTime());
 
-        TransactionType type;
-        try {
-            type = TransactionType.valueOf(request.transactionType().trim().toUpperCase());
-        } catch (Exception e) {
-            type = TransactionType.DEBIT;
-        }
+        return ResponseEntity.ok(toResponse(saved));
+    }
 
-        PaymentMode paymentMode;
-        try {
-            paymentMode = PaymentMode.valueOf(request.paymentMode().trim().toUpperCase());
-        } catch (Exception e) {
-            paymentMode = PaymentMode.UNKNOWN;
-        }
+    @PatchMapping("/{id}")
+    public ResponseEntity<TransactionResponse> updateTransaction(
+            @PathVariable UUID id,
+            @RequestBody UpdateTransactionRequest request) {
 
-        LocalDateTime transactionTime;
-        try {
-            transactionTime = request.transactionTime() != null
-                    ? LocalDateTime.parse(request.transactionTime())
-                    : LocalDateTime.now();
-        } catch (Exception e) {
-            transactionTime = LocalDateTime.now();
-        }
+        UUID userId = SecurityUtils.currentUserId();
 
-        Transaction transaction = Transaction.builder()
-                .userId(userId)
-                .amount(request.amount())
-                .transactionType(type)
-                .paymentMode(paymentMode)
-                .category(category)
-                .counterparty(request.counterparty())
-                .transactionTime(transactionTime)
-                .created(LocalDateTime.now())
+        Transaction updated = transactionProcessingService.updateTransaction(
+                userId,
+                id,
+                request.counterparty(),
+                request.paymentMode(),
+                request.category());
+
+        return ResponseEntity.ok(toResponse(updated));
+    }
+
+    @PostMapping("/{id}")
+    public ResponseEntity<Void> deleteTransaction(@PathVariable UUID id){
+        transactionProcessingService.deleteTransaction(id);
+        return ResponseEntity.ok().build();
+    }
+
+    private TransactionResponse toResponse(Transaction transaction) {
+        return TransactionResponse.builder()
+                .id(transaction.getId())
+                .amount(transaction.getAmount())
+                .transactionType(transaction.getTransactionType())
+                .paymentMode(transaction.getPaymentMode())
+                .category(transaction.getCategory())
+                .counterparty(transaction.getCounterparty())
+                .referenceNumber(transaction.getReferenceNumber())
+                .transactionTime(transaction.getTransactionTime())
                 .build();
-
-        Transaction saved = transactionRepository.save(transaction);
-
-        return ResponseEntity.ok(TransactionResponse.builder()
-                .id(saved.getId())
-                .amount(saved.getAmount())
-                .transactionType(saved.getTransactionType())
-                .paymentMode(saved.getPaymentMode())
-                .category(saved.getCategory())
-                .counterparty(saved.getCounterparty())
-                .transactionTime(saved.getTransactionTime())
-                .build());
     }
 
     public record ManualTransactionRequest(
@@ -94,5 +81,15 @@ public class TransactionController {
             String transactionTime    // ISO datetime string, nullable (defaults to now)
     ) {
     }
-}
 
+    /**
+     * Partial update for an existing transaction. Any field left null/blank
+     * is left unchanged.
+     */
+    public record UpdateTransactionRequest(
+            String counterparty,   // merchant, nullable
+            String paymentMode,    // nullable
+            String category        // nullable
+    ) {
+    }
+}
