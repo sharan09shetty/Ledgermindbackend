@@ -62,6 +62,7 @@ public class UserController {
     private UserStatusResponse toStatusResponse(User user) {
         return UserStatusResponse.builder()
                 .email(user.getEmail())
+                .name(user.getName())
                 .bankCode(user.getBank() != null ? user.getBank().getCode() : null)
                 .bankName(user.getBank() != null ? user.getBank().getName() : null)
                 .telegramLinked(user.getTelegramChatId() != null)

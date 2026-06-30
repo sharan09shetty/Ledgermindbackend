@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UserStatusResponse {
     private String email;
+    private String name;
     private String bankCode;
     private String bankName;
     private boolean telegramLinked;
