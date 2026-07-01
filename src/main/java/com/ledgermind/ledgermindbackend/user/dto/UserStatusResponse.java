@@ -14,6 +14,7 @@ public class UserStatusResponse {
     private String name;
     private String bankCode;
     private String bankName;
+    private boolean gmailConnected;
     private boolean telegramLinked;
     private boolean active;
 }

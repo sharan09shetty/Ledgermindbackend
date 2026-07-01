@@ -23,8 +23,8 @@ public class UserScanSchedulerService {
     private final GmailService gmailService;
     private final TelegramService telegramService;
 
-    @Value("${app.base-url}")
-    private String baseUrl;
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     @Scheduled(cron = "${ledgermind.scan.cron:0 */15 * * * *}")
     public void scheduledScan() {
@@ -54,7 +54,7 @@ public class UserScanSchedulerService {
         if (user.getTelegramChatId() != null) {
             telegramService.sendMessage(TelegramMessageRequest.builder()
                     .chat_id(user.getTelegramChatId())
-                    .text("LedgerMind lost access to your Gmail account. Please reconnect here: " + baseUrl + "/auth/google/login")
+                    .text("LedgerMind lost access to your Gmail account. Please log in and reconnect Gmail here: " + frontendUrl + "/settings")
                     .build());
         }
     }

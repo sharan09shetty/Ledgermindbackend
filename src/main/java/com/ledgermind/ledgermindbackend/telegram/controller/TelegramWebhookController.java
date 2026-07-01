@@ -141,8 +141,13 @@ public class TelegramWebhookController {
 
         User user = userOpt.get();
         user.setTelegramChatId(chatId.toString());
-        if (user.getBank() != null) user.setActive(true);
+        if (user.isReadyForScanning()) user.setActive(true);
         userRepository.save(user);
+
+        if (!user.isGmailConnected()) {
+            sendReplyMessage(chatId, "Telegram linked! One more step — connect Gmail in the app before I can start tracking your transactions.");
+            return;
+        }
 
         sendReplyMessage(chatId, "Telegram linked! You'll get transaction notifications here.\n\nUse /ask to query your finances or /log to record a cash transaction.");
     }

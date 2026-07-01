@@ -36,4 +36,20 @@ public class User {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "bank_code", referencedColumnName = "code")
     private Bank bank;
+
+    @Transient
+    public boolean isGmailConnected() {
+        return gmailRefreshToken != null && !gmailRefreshToken.isBlank();
+    }
+
+    /**
+     * A user is only ready to be picked up by the scan scheduler once they've
+     * logged in, connected Gmail, picked a bank, and linked Telegram. Gmail
+     * linking now happens as a separate step after login, so this can no
+     * longer be inferred just from bank + telegram being set.
+     */
+    @Transient
+    public boolean isReadyForScanning() {
+        return isGmailConnected() && bank != null && telegramChatId != null;
+    }
 }

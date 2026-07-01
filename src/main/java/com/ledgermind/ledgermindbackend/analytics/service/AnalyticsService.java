@@ -3,6 +3,7 @@ package com.ledgermind.ledgermindbackend.analytics.service;
 import com.ledgermind.ledgermindbackend.analytics.dto.*;
 import com.ledgermind.ledgermindbackend.analytics.repository.AnalyticsRepository;
 import com.ledgermind.ledgermindbackend.email.entity.Transaction;
+import com.ledgermind.ledgermindbackend.email.enums.Category;
 import com.ledgermind.ledgermindbackend.email.enums.TransactionType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
 import java.time.format.TextStyle;
@@ -32,6 +34,9 @@ public class AnalyticsService {
         List<Object[]> merchantRows = repo.topMerchantRaw(userId, from, to);
 
         String topCategory     = catRows.isEmpty()      ? null : catRows.get(0)[0].toString();
+        BigDecimal topCategorySpend = catRows.isEmpty()
+                ? BigDecimal.ZERO
+                : (BigDecimal) catRows.get(0)[1];
         String topMerchant     = merchantRows.isEmpty() ? null : (String) merchantRows.get(0)[0];
         BigDecimal topMerchantSpend = merchantRows.isEmpty()
                 ? BigDecimal.ZERO
@@ -43,9 +48,45 @@ public class AnalyticsService {
                 .net(totalCredit.subtract(totalDebit))
                 .transactionCount(count)
                 .topCategory(topCategory)
+                .topCategorySpend(topCategorySpend)
                 .topMerchant(topMerchant)
                 .topMerchantSpend(topMerchantSpend)
                 .build();
+    }
+
+    // ── Daily insight (for the nightly Telegram summary) ─────────────────────
+
+    public DailyInsightResponse getDailyInsight(UUID userId, LocalDate date) {
+
+        LocalDateTime from = date.atStartOfDay();
+        LocalDateTime to = date.atTime(23, 59, 59);
+
+        SummaryResponse summary = getSummary(userId, from, to);
+        Transaction highest = repo.findHighestDebit(userId, from, to).orElse(null);
+
+        return DailyInsightResponse.builder()
+                .date(date)
+                .totalSpent(summary.getTotalDebit())
+                .totalReceived(summary.getTotalCredit())
+                .net(summary.getNet())
+                .transactionCount(summary.getTransactionCount())
+                .topCategory(parseCategory(summary.getTopCategory()))
+                .topCategorySpend(summary.getTopCategorySpend())
+                .topMerchant(summary.getTopMerchant())
+                .topMerchantSpend(summary.getTopMerchantSpend())
+                .highestTransactionAmount(highest != null ? highest.getAmount() : null)
+                .highestTransactionMerchant(highest != null ? highest.getCounterparty() : null)
+                .highestTransactionCategory(highest != null ? highest.getCategory() : null)
+                .build();
+    }
+
+    private Category parseCategory(String name) {
+        if (name == null) return null;
+        try {
+            return Category.valueOf(name);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     // ── Monthly breakdown ─────────────────────────────────────────────────────

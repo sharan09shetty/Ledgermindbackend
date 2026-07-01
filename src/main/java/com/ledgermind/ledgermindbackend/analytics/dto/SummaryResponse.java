@@ -18,5 +18,6 @@ public class SummaryResponse {
     private long transactionCount;
     private String topCategory;
     private String topMerchant;
+    private BigDecimal topCategorySpend;
     private BigDecimal topMerchantSpend;
 }

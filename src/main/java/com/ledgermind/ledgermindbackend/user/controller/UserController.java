@@ -34,7 +34,7 @@ public class UserController {
 
         user.setBank(bank);
 
-        if (user.getTelegramChatId() != null) {
+        if (user.isReadyForScanning()) {
             user.setActive(true);
         }
 
@@ -65,6 +65,7 @@ public class UserController {
                 .name(user.getName())
                 .bankCode(user.getBank() != null ? user.getBank().getCode() : null)
                 .bankName(user.getBank() != null ? user.getBank().getName() : null)
+                .gmailConnected(user.isGmailConnected())
                 .telegramLinked(user.getTelegramChatId() != null)
                 .active(Boolean.TRUE.equals(user.getActive()))
                 .build();

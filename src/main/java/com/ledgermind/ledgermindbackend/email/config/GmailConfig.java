@@ -5,6 +5,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.gmail.GmailScopes;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,15 +32,43 @@ public class GmailConfig {
         return secrets;
     }
 
+    /**
+     * Plain sign-in flow: identifies the user (email + name) only. No Gmail
+     * access is requested here, so no refresh token is needed/stored — this
+     * is just "online" access used once to read the profile.
+     */
     @Bean
-    public GoogleAuthorizationCodeFlow googleAuthorizationCodeFlow(
+    @Qualifier("login")
+    public GoogleAuthorizationCodeFlow loginAuthorizationCodeFlow(
             GoogleClientSecrets clientSecrets) throws Exception {
 
         return new GoogleAuthorizationCodeFlow.Builder(
                 GoogleNetHttpTransport.newTrustedTransport(),
                 GsonFactory.getDefaultInstance(),
                 clientSecrets,
-                Set.of(GmailScopes.GMAIL_READONLY, "https://www.googleapis.com/auth/userinfo.profile")
+                Set.of(
+                        "openid",
+                        "https://www.googleapis.com/auth/userinfo.email",
+                        "https://www.googleapis.com/auth/userinfo.profile"
+                )
+        ).build();
+    }
+
+    /**
+     * Gmail-linking flow: requested separately, after the user is already
+     * logged in, from a "Connect Gmail" action in the UI. Requires offline
+     * access + forced consent so we reliably get back a refresh token.
+     */
+    @Bean
+    @Qualifier("gmail")
+    public GoogleAuthorizationCodeFlow gmailAuthorizationCodeFlow(
+            GoogleClientSecrets clientSecrets) throws Exception {
+
+        return new GoogleAuthorizationCodeFlow.Builder(
+                GoogleNetHttpTransport.newTrustedTransport(),
+                GsonFactory.getDefaultInstance(),
+                clientSecrets,
+                Set.of(GmailScopes.GMAIL_READONLY)
         )
                 .setAccessType("offline")
                 .build();

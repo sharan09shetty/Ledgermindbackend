@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface AnalyticsRepository extends JpaRepository<Transaction, UUID> {
@@ -145,6 +146,19 @@ public interface AnalyticsRepository extends JpaRepository<Transaction, UUID> {
                                         @Param("from") LocalDateTime from,
                                         @Param("to") LocalDateTime to,
                                         @Param("limit") int limit);
+
+    @Query(value = """
+                SELECT *
+                FROM transactions
+                WHERE user_id = :userId
+                  AND transaction_type = 'DEBIT'
+                  AND transaction_time BETWEEN :from AND :to
+                ORDER BY amount DESC
+                LIMIT 1
+            """, nativeQuery = true)
+    Optional<Transaction> findHighestDebit(@Param("userId") UUID userId,
+                                           @Param("from") LocalDateTime from,
+                                           @Param("to") LocalDateTime to);
 
     // ── Transaction list (paginated + filtered) ───────────────────────────────
     @Query(value = """

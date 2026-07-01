@@ -32,6 +32,12 @@ public class SecurityConfig {
                         // OAuth flow — must be public, this is how users get their token
                         .requestMatchers("/auth/google/login", "/auth/google/callback").permitAll()
 
+                        // Gmail-link callback is also a public Google redirect (no JWT header
+                        // on browser navigation); it authenticates itself via a signed state
+                        // param instead. /auth/google/gmail/connect stays behind the JWT filter
+                        // since it needs to know which logged-in user is linking Gmail.
+                        .requestMatchers("/auth/google/gmail/callback").permitAll()
+
                         // Telegram webhook — called by Telegram's servers, not by users
                         .requestMatchers("/telegram/webhook").permitAll()
 
