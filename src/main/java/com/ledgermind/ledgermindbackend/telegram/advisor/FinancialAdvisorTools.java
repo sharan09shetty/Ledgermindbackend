@@ -108,15 +108,49 @@ public class FinancialAdvisorTools {
     }
 
     @Tool(description = """
-            Get transactions between two specific dates (inclusive), optionally filtered
-            by category, merchant name, or transaction type (DEBIT or CREDIT).
+            Get total spend (debit), total received (credit), net, transaction count,
+            top category and top merchant for a specific day or date range (inclusive).
             
-            ALWAYS use this tool when the user asks about a specific day or date range:
-            - 'yesterday' → fromDate = yesterday, toDate = yesterday
-            - 'today' → fromDate = today, toDate = today
-            - 'last 3 days' → fromDate = 3 days ago, toDate = today
-            - 'last week' → fromDate = 7 days ago, toDate = today
+            ALWAYS use this tool first when the user asks how much they spent/received over
+            a specific day or date range, e.g.:
+            - 'how much did I spend yesterday?' → fromDate = yesterday, toDate = yesterday
+            - 'how much today?' → fromDate = today, toDate = today
+            - 'last 3 days spending' → fromDate = 3 days ago, toDate = today
+            - 'spending last week' → fromDate = 7 days ago, toDate = today
             - 'between 1st and 15th June' → fromDate = 2026-06-01, toDate = 2026-06-15
+            
+            Do NOT compute totals yourself by adding up individual transactions from
+            getTransactionsByDateRange — always use this tool for totals, since it correctly
+            separates money spent (DEBIT) from money received (CREDIT) at the database level.
+            
+            Date format: YYYY-MM-DD (e.g. 2026-06-27).
+            If no dates provided, defaults to today.
+            """)
+    public SummaryResponse getSpendingSummaryForDateRange(
+            @ToolParam(description = "Start date inclusive, format YYYY-MM-DD") String fromDate,
+            @ToolParam(description = "End date inclusive, format YYYY-MM-DD") String toDate) {
+
+        LocalDate from = (fromDate != null) ? LocalDate.parse(fromDate) : LocalDate.now();
+        LocalDate to = (toDate != null) ? LocalDate.parse(toDate) : LocalDate.now();
+
+        LocalDateTime fromDt = from.atStartOfDay();
+        LocalDateTime toDt = to.atTime(23, 59, 59);
+
+        log.info("[FinancialAdvisor] tool=getSpendingSummaryForDateRange userId={} from={} to={}", userId, fromDt, toDt);
+        return analyticsService.getSummary(userId, fromDt, toDt);
+    }
+
+    @Tool(description = """
+            Get the individual transaction records (line items) between two specific dates
+            (inclusive), optionally filtered by category, merchant name, or transaction type
+            (DEBIT or CREDIT).
+            
+            Use this tool ONLY when the user wants to see the actual list of transactions
+            (e.g. 'list my transactions from yesterday', 'show what I bought at Swiggy last week').
+            
+            Do NOT use this tool to answer 'how much did I spend' style questions and do NOT
+            sum the amounts yourself — use getSpendingSummaryForDateRange for totals instead,
+            since simply adding up amounts here will mix DEBIT and CREDIT transactions together.
             
             Date format: YYYY-MM-DD (e.g. 2026-06-27).
             Leave filters null if not specified.
