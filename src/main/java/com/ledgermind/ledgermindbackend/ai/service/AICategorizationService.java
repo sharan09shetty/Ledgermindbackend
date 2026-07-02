@@ -39,13 +39,13 @@ public class AICategorizationService {
                 Amount: %s
                 
                 Categories:
-                FOOD, TRAVEL, ENTERTAINMENT, SHOPPING, BILLS,
-                INVESTMENT, SALARY, TRANSFER, HEALTH, OTHER
+                %s
                 
                 Return ONLY the category name, nothing else.
                 """.formatted(
                 transaction.getCounterparty(),
                 transaction.getTransactionType(),
-                transaction.getAmount());
+                transaction.getAmount(),
+                Category.namesCsv());
     }
 }

@@ -33,7 +33,7 @@ public class CashTransactionParser {
             Rules:
             - amount: extract the numeric amount in INR. If currency mentioned (₹, Rs, rupees), strip it.
             - transactionType: DEBIT if money was spent/paid/sent. CREDIT if money was received/earned.
-            - category: pick the best match from: FOOD, TRAVEL, ENTERTAINMENT, SHOPPING, BILLS, INVESTMENT, SALARY, TRANSFER, HEALTH, OTHER
+            - category: pick the best match from: %s
             - counterparty: the merchant, person, or place. Use null if not mentioned.
             
             Respond ONLY with a valid JSON object, no explanation, no markdown:
@@ -49,7 +49,7 @@ public class CashTransactionParser {
 
         try {
             String response = chatClient.prompt()
-                    .user(PARSE_PROMPT.formatted(description))
+                    .user(PARSE_PROMPT.formatted(description, Category.namesCsv()))
                     .call()
                     .content();
 

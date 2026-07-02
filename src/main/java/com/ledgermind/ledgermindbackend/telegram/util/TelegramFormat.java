@@ -84,6 +84,7 @@ public final class TelegramFormat {
             case BILLS -> "🧾";
             case INVESTMENT -> "📈";
             case SALARY -> "💼";
+            case GROCERIES -> "🛒";
             case TRANSFER -> "🔁";
             case HEALTH -> "🏥";
             case OTHER -> "📦";

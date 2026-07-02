@@ -159,7 +159,7 @@ public class FinancialAdvisorTools {
     public PagedResponse<TransactionResponse> getTransactionsByDateRange(
             @ToolParam(description = "Start date inclusive, format YYYY-MM-DD") String fromDate,
             @ToolParam(description = "End date inclusive, format YYYY-MM-DD") String toDate,
-            @ToolParam(description = "Category filter e.g. FOOD, TRAVEL, SHOPPING, BILLS, ENTERTAINMENT, HEALTH, INVESTMENT, SALARY, TRANSFER, OTHER. Null for all.") String category,
+            @ToolParam(description = "Category filter - must exactly match one of the category names given to you in the system prompt. Null for all.") String category,
             @ToolParam(description = "Partial merchant name, e.g. 'Swiggy'. Null for all.") String merchant,
             @ToolParam(description = "DEBIT or CREDIT. Null for both.") String transactionType,
             @ToolParam(description = "Max results to return, default 20, max 50") Integer limit) {

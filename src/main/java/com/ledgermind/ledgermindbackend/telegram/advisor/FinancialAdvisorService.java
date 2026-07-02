@@ -1,5 +1,6 @@
 package com.ledgermind.ledgermindbackend.telegram.advisor;
 
+import com.ledgermind.ledgermindbackend.email.enums.Category;
 import com.ledgermind.ledgermindbackend.telegram.advisor.RedisChatMemoryStore.ChatMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,8 +39,7 @@ public class FinancialAdvisorService {
             - All amounts are in Indian Rupees (INR). Always prefix amounts with ₹.
             - All dates and times are in IST (Indian Standard Time).
             - Today's date is %s.
-            - Transaction categories available: FOOD, TRAVEL, ENTERTAINMENT, SHOPPING,
-              BILLS, INVESTMENT, SALARY, TRANSFER, HEALTH, OTHER.
+            - Transaction categories available: %s.
             - Transaction types: DEBIT (money going out), CREDIT (money coming in).
             
             Behaviour:
@@ -63,7 +63,7 @@ public class FinancialAdvisorService {
         FinancialAdvisorTools tools = financialAdvisorTools.forUser(userId);
 
         try {
-            String systemPrompt = SYSTEM_PROMPT.formatted(LocalDate.now());
+            String systemPrompt = SYSTEM_PROMPT.formatted(LocalDate.now(), Category.namesCsv());
 
             List<ChatMessage> history = memoryStore.load(chatId);
             List<Message> messages = toSpringAiMessages(history);
