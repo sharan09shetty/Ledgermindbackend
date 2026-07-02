@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -87,6 +88,9 @@ public class HdfcTransactionParser implements TransactionParser {
 
     private static final DateTimeFormatter CC_DATE_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("d MMM[,] yyyy HH:mm:ss", Locale.ENGLISH);
+
+    private static final ZoneId UTC_ZONE = ZoneId.of("UTC");
+    private static final ZoneId IST_ZONE = ZoneId.of("Asia/Kolkata");
 
     private TransactionType determineTransactionType(String body) {
 
@@ -215,6 +219,9 @@ public class HdfcTransactionParser implements TransactionParser {
                 log.warn("Failed to parse transaction time from body, falling back to receivedAt: {}", e.getMessage());
             }
         }
-        return fallback;
+        if (fallback == null) {
+            return null;
+        }
+        return fallback.atZone(UTC_ZONE).withZoneSameInstant(IST_ZONE).toLocalDateTime();
     }
 }
