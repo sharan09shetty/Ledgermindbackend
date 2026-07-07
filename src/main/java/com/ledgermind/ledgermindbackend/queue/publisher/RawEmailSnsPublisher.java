@@ -3,6 +3,7 @@ package com.ledgermind.ledgermindbackend.queue.publisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ledgermind.ledgermindbackend.email.entity.RawEmail;
 import com.ledgermind.ledgermindbackend.queue.dto.RawEmailMessage;
+import com.ledgermind.ledgermindbackend.telegram.service.TelegramLinkService;
 import com.ledgermind.ledgermindbackend.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,8 +12,6 @@ import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 
-import java.util.UUID;
-
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -20,19 +19,22 @@ public class RawEmailSnsPublisher {
 
     private final SnsClient snsClient;
     private final ObjectMapper objectMapper;
+    private final TelegramLinkService telegramLinkService;
 
     @Value("${aws.sns.raw-email-topic-arn}")
     private String topicArn;
 
     public void publish(RawEmail email, User user) {
         try {
+            String telegramChatId = telegramLinkService.resolveChatId(user.getId()).orElse(null);
+
             String payload = objectMapper.writeValueAsString(new RawEmailMessage(
                     email.getId(),
                     email.getUserId(),
                     email.getSender(),
                     email.getBody(),
                     email.getReceivedAt(),
-                    user.getTelegramChatId()
+                    telegramChatId
             ));
 
             snsClient.publish(PublishRequest.builder()

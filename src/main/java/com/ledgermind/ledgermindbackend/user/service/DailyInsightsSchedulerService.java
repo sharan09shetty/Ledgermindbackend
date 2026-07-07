@@ -2,6 +2,7 @@ package com.ledgermind.ledgermindbackend.user.service;
 
 import com.ledgermind.ledgermindbackend.analytics.dto.DailyInsightResponse;
 import com.ledgermind.ledgermindbackend.analytics.service.AnalyticsService;
+import com.ledgermind.ledgermindbackend.telegram.service.TelegramLinkService;
 import com.ledgermind.ledgermindbackend.telegram.service.TelegramService;
 import com.ledgermind.ledgermindbackend.user.entity.User;
 import com.ledgermind.ledgermindbackend.user.repository.UserRepository;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Sends every active user a nightly Telegram summary of that day's spending:
@@ -31,6 +33,7 @@ public class DailyInsightsSchedulerService {
     private final UserRepository userRepository;
     private final AnalyticsService analyticsService;
     private final TelegramService telegramService;
+    private final TelegramLinkService telegramLinkService;
 
     @Scheduled(cron = "${ledgermind.insights.cron:0 30 21 * * *}", zone = "Asia/Kolkata")
     public void sendDailyInsights() {
@@ -52,7 +55,8 @@ public class DailyInsightsSchedulerService {
     }
 
     private boolean sendInsightIfAny(User user, LocalDate date) {
-        if (user.getTelegramChatId() == null) {
+        Optional<String> chatId = telegramLinkService.resolveChatId(user.getId());
+        if (chatId.isEmpty()) {
             // Shouldn't happen for active users given isReadyForScanning(), but guard anyway.
             return false;
         }
@@ -64,7 +68,7 @@ public class DailyInsightsSchedulerService {
             return false;
         }
 
-        telegramService.sendDailyInsight(user.getTelegramChatId(), insight);
+        telegramService.sendDailyInsight(chatId.get(), insight);
         return true;
     }
 }

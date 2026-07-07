@@ -22,6 +22,5 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     void updateLastEmailSyncTimeById(@Param("id") UUID id, @Param("lastEmailSyncTime") LocalDateTime lastEmailSyncTime);
 
     Optional<User> findByEmail(String email);
-    Optional<User> findByTelegramChatId(String telegramChatId);
     List<User> findByActiveTrue();
 }

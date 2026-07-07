@@ -11,9 +11,9 @@ import com.ledgermind.ledgermindbackend.email.repository.RawEmailRepository;
 import com.ledgermind.ledgermindbackend.email.repository.TransactionRepository;
 import com.ledgermind.ledgermindbackend.queue.dto.RawEmailMessage;
 import com.ledgermind.ledgermindbackend.telegram.dto.TelegramMessageRequest;
+import com.ledgermind.ledgermindbackend.telegram.service.TelegramLinkService;
 import com.ledgermind.ledgermindbackend.telegram.service.TelegramService;
 import com.ledgermind.ledgermindbackend.user.entity.User;
-import com.ledgermind.ledgermindbackend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -35,10 +35,10 @@ public class TransactionProcessingService {
     private final RawEmailRepository rawEmailRepository;
     private final TransactionRepository transactionRepository;
     private final MerchantCategoryMappingRepository categoryMappingRepository;
-    private final UserRepository userRepository;
     private final List<TransactionParser> parsers;
     private final CategorizationService categorizationService;
     private final TelegramService telegramService;
+    private final TelegramLinkService telegramLinkService;
 
     private Optional<TransactionParser> getParser(RawEmail email) {
         return parsers.stream().filter(p -> p.supports(email)).findFirst();
@@ -86,7 +86,7 @@ public class TransactionProcessingService {
 
     public void updateTransactionCategory(Long chatId, Long messageId, String newCategory) {
 
-        User user = userRepository.findByTelegramChatId(chatId.toString()).orElse(null);
+        User user = telegramLinkService.resolveUserByChatId(chatId.toString()).orElse(null);
 
         if (user == null) {
             log.warn("Received Telegram update from unlinked chatId={}", chatId);

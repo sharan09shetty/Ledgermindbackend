@@ -25,9 +25,6 @@ public class User {
     @Column(name = "last_email_sync_time")
     private LocalDateTime lastEmailSyncTime;
 
-    @Column(name = "telegram_chat_id", unique = true)
-    private String telegramChatId;
-
     private Boolean active;
 
     @Column(name = "gmail_refresh_token", columnDefinition = "TEXT")
@@ -44,12 +41,11 @@ public class User {
 
     /**
      * A user is only ready to be picked up by the scan scheduler once they've
-     * logged in, connected Gmail, picked a bank, and linked Telegram. Gmail
-     * linking now happens as a separate step after login, so this can no
-     * longer be inferred just from bank + telegram being set.
+     * connected Gmail and picked a bank. Telegram linking is optional and
+     * independent - it only gates notifications/chat, not scanning itself.
      */
     @Transient
     public boolean isReadyForScanning() {
-        return isGmailConnected() && bank != null && telegramChatId != null;
+        return isGmailConnected() && bank != null;
     }
 }
