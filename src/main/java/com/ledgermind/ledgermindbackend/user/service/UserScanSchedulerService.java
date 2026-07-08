@@ -52,6 +52,7 @@ public class UserScanSchedulerService {
 
     private void deactivateAndNotify(User user) {
         user.setActive(false);
+        user.setGmailRefreshToken(null);
         userRepository.save(user);
 
         Optional<String> chatId = telegramLinkService.resolveChatId(user.getId());
