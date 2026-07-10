@@ -8,8 +8,10 @@ import com.ledgermind.ledgermindbackend.user.dto.UserStatusResponse;
 import com.ledgermind.ledgermindbackend.user.entity.User;
 import com.ledgermind.ledgermindbackend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.UUID;
 
@@ -31,6 +33,10 @@ public class UserController {
 
         Bank bank = bankRepository.findById(code.toUpperCase())
                 .orElseThrow(() -> new IllegalArgumentException("Unknown bank code: " + code));
+
+        if (!Boolean.TRUE.equals(bank.getActive())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bank not supported yet: " + code);
+        }
 
         user.setBank(bank);
 

@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -132,6 +133,25 @@ public class GoogleAuthController {
                 .build();
 
         return ResponseEntity.ok(Map.of("url", url));
+    }
+
+    // Lets a logged-in user disconnect Gmail from the app. Clears the stored
+    // refresh token so we can no longer read their mail, and deactivates
+    // scanning (a user without Gmail isn't ready to scan). lastEmailSyncTime is
+    // kept so reconnecting resumes where we left off instead of re-ingesting.
+    @PostMapping("/gmail/disconnect")
+    public ResponseEntity<Void> disconnectGmail() {
+        UUID userId = SecurityUtils.currentUserId();
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        user.setGmailRefreshToken(null);
+        user.setActive(false);
+        userRepository.save(user);
+
+        log.info("Gmail disconnected for userId={}", userId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/gmail/callback")
