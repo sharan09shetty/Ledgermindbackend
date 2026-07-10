@@ -7,6 +7,8 @@ import com.ledgermind.ledgermindbackend.telegram.advisor.FinancialAdvisorService
 import com.ledgermind.ledgermindbackend.telegram.config.TelegramProperties;
 import com.ledgermind.ledgermindbackend.telegram.dto.TelegramMessageRequest;
 import com.ledgermind.ledgermindbackend.telegram.dto.TelegramUpdate;
+import com.ledgermind.ledgermindbackend.ratelimit.RateLimitProperties;
+import com.ledgermind.ledgermindbackend.ratelimit.RateLimiterService;
 import com.ledgermind.ledgermindbackend.telegram.service.TelegramLinkService;
 import com.ledgermind.ledgermindbackend.telegram.service.TelegramService;
 import com.ledgermind.ledgermindbackend.user.entity.User;
@@ -32,6 +34,8 @@ public class TelegramWebhookController {
     private final FinancialAdvisorService financialAdvisorService;
     private final CashTransactionParser cashTransactionParser;
     private final TelegramProperties telegramProperties;
+    private final RateLimiterService rateLimiterService;
+    private final RateLimitProperties rateLimitProperties;
 
     @PostMapping("/webhook")
     public ResponseEntity<Void> receiveUpdate(
@@ -101,6 +105,9 @@ public class TelegramWebhookController {
             sendReplyMessage(chatId, "Your Telegram isn't linked yet. Please connect it from the LedgerMind app first.");
             return;
         }
+        if (isRateLimited(chatId, userOpt.get().getId(), rateLimitProperties.getTelegramChat(), "tg-chat")) {
+            return;
+        }
         telegramService.sendChatAction(chatId, "typing");
         String response = financialAdvisorService.ask(chatId, userOpt.get().getId(), question);
         if (response == null || response.isBlank()) {
@@ -115,6 +122,9 @@ public class TelegramWebhookController {
         Optional<User> userOpt = telegramLinkService.resolveUserByChatId(chatId.toString());
         if (userOpt.isEmpty()) {
             sendReplyMessage(chatId, "Your Telegram isn't linked yet. Please connect it from the LedgerMind app first.");
+            return;
+        }
+        if (isRateLimited(chatId, userOpt.get().getId(), rateLimitProperties.getTelegramCashLog(), "tg-cashlog")) {
             return;
         }
 
@@ -170,6 +180,24 @@ public class TelegramWebhookController {
     private void handleForget(Long chatId) {
         financialAdvisorService.clearMemory(chatId);
         sendReplyMessage(chatId, "Conversation history cleared. Starting fresh!");
+    }
+
+    /**
+     * Enforces a per-user rate limit before an LLM-backed handler runs, so a
+     * single user can't drain LedgerMind's model credits. On breach, replies
+     * with a friendly notice and returns true (caller should stop).
+     */
+    private boolean isRateLimited(Long chatId, java.util.UUID userId,
+                                  RateLimitProperties.Limit limit, String bucket) {
+        boolean allowed = rateLimiterService.tryAcquire(
+                bucket + ":" + userId, limit.getLimit(), limit.getWindow());
+        if (!allowed) {
+            log.info("Rate limit hit: bucket={} userId={} chatId={}", bucket, userId, chatId);
+            sendReplyMessage(chatId,
+                    "You're sending requests a little too fast. Please wait a moment and try again.");
+            return true;
+        }
+        return false;
     }
 
     /**

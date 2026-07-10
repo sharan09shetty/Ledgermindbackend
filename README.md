@@ -48,8 +48,8 @@ local [Ollama](https://ollama.com) if you don't want to use Gemini.
 2. Create `src/main/resources/application-local.properties` (gitignored —
    never commit it) with your values for every `${...}` placeholder in
    `application.properties`: database credentials, Google OAuth client,
-   JWT secret, Telegram bot token, AWS/LocalStack settings, and
-   `ai.provider` (`gemini` or `ollama`).
+   JWT secret, Telegram bot token, AWS/LocalStack settings, and your AI
+   provider config (see below).
 
 3. Run with the `local` profile (dev/mock endpoints are only registered
    under this profile):
@@ -61,6 +61,46 @@ local [Ollama](https://ollama.com) if you don't want to use Gemini.
 Database schema is managed by Flyway (`src/main/resources/db/migration`).
 Migrations run automatically at startup; a pre-Flyway database is baselined
 at V1 automatically on first run.
+
+## AI providers & models
+
+Two independent LLM roles, each configurable to its own provider and model —
+so you can, e.g., run cheap categorization on a small model and the chat
+advisor on a stronger one:
+
+| Role             | What it does                                | Provider prop                | Model prop                |
+|------------------|---------------------------------------------|------------------------------|---------------------------|
+| Categorization   | Email/cash transaction parsing & tagging    | `ai.categorization.provider` | `ai.categorization.model` |
+| Chat             | Telegram financial advisor (tool-calling)   | `ai.chat.provider`           | `ai.chat.model`           |
+
+Provider is one of `openai`, `gemini`, `ollama`. Both providers default to
+`AI_PROVIDER` (fallback `gemini`). Leave a model blank to use that provider's
+default (`spring.ai.<provider>.chat.options.model`). Only configured providers
+get a client — selecting a provider without its API key fails fast at startup.
+
+Example (categorize cheaply on OpenAI mini, chat on the full model):
+
+```properties
+AI_CATEGORIZATION_PROVIDER=openai
+AI_CATEGORIZATION_MODEL=gpt-4o-mini
+AI_CHAT_PROVIDER=openai
+AI_CHAT_MODEL=gpt-4o
+OPENAI_API_KEY=sk-...
+```
+
+## Rate limiting
+
+The user-facing LLM paths (Telegram chat and `/log` cash entry) are rate
+limited **per user** via Redis, so one user can't exhaust LedgerMind's model
+credits. Defaults (all configurable):
+
+| Action        | Property prefix               | Default        |
+|---------------|-------------------------------|----------------|
+| Advisor chat  | `ratelimit.telegram-chat`     | 20 / minute    |
+| Cash `/log`   | `ratelimit.telegram-cash-log` | 15 / minute    |
+
+The limiter fails **open**: if Redis is unreachable, requests are allowed
+rather than blocking users during an outage.
 
 ## Telegram webhook
 

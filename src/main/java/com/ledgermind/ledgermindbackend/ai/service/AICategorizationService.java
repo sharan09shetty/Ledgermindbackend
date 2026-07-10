@@ -2,17 +2,20 @@ package com.ledgermind.ledgermindbackend.ai.service;
 
 import com.ledgermind.ledgermindbackend.email.entity.Transaction;
 import com.ledgermind.ledgermindbackend.email.enums.Category;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class AICategorizationService {
 
     private final ChatClient chatClient;
+
+    public AICategorizationService(@Qualifier("categorizationChatClient") ChatClient chatClient) {
+        this.chatClient = chatClient;
+    }
 
     public Category categorize(Transaction transaction) {
         String response = "";

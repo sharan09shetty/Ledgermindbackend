@@ -7,23 +7,29 @@ import com.ledgermind.ledgermindbackend.email.enums.Category;
 import com.ledgermind.ledgermindbackend.email.enums.PaymentMode;
 import com.ledgermind.ledgermindbackend.email.enums.TransactionType;
 import com.ledgermind.ledgermindbackend.email.repository.TransactionRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class CashTransactionParser {
 
     private final ChatClient chatClient;
     private final TransactionRepository transactionRepository;
     private final ObjectMapper objectMapper;
+
+    public CashTransactionParser(@Qualifier("categorizationChatClient") ChatClient chatClient,
+                                 TransactionRepository transactionRepository,
+                                 ObjectMapper objectMapper) {
+        this.chatClient = chatClient;
+        this.transactionRepository = transactionRepository;
+        this.objectMapper = objectMapper;
+    }
 
     private static final String PARSE_PROMPT = """
             You are a financial transaction parser for an Indian user.

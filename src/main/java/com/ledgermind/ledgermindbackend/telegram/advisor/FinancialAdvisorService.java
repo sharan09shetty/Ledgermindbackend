@@ -4,12 +4,12 @@ import com.ledgermind.ledgermindbackend.analytics.service.AnalyticsService;
 import com.ledgermind.ledgermindbackend.common.TimeUtils;
 import com.ledgermind.ledgermindbackend.email.enums.Category;
 import com.ledgermind.ledgermindbackend.telegram.advisor.RedisChatMemoryStore.ChatMessage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -17,13 +17,20 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class FinancialAdvisorService {
 
     private final ChatClient chatClient;
     private final AnalyticsService analyticsService;
     private final RedisChatMemoryStore memoryStore;
+
+    public FinancialAdvisorService(@Qualifier("chatChatClient") ChatClient chatClient,
+                                   AnalyticsService analyticsService,
+                                   RedisChatMemoryStore memoryStore) {
+        this.chatClient = chatClient;
+        this.analyticsService = analyticsService;
+        this.memoryStore = memoryStore;
+    }
 
     private static final String SYSTEM_PROMPT = """
             You are a personal finance assistant for an Indian user.
