@@ -4,6 +4,7 @@ import com.ledgermind.ledgermindbackend.ai.service.CashTransactionParser;
 import com.ledgermind.ledgermindbackend.email.entity.Transaction;
 import com.ledgermind.ledgermindbackend.email.service.TransactionProcessingService;
 import com.ledgermind.ledgermindbackend.telegram.advisor.FinancialAdvisorService;
+import com.ledgermind.ledgermindbackend.telegram.config.TelegramProperties;
 import com.ledgermind.ledgermindbackend.telegram.dto.TelegramMessageRequest;
 import com.ledgermind.ledgermindbackend.telegram.dto.TelegramUpdate;
 import com.ledgermind.ledgermindbackend.telegram.service.TelegramLinkService;
@@ -11,11 +12,13 @@ import com.ledgermind.ledgermindbackend.telegram.service.TelegramService;
 import com.ledgermind.ledgermindbackend.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.MessageDigest;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping("/telegram")
@@ -28,12 +31,28 @@ public class TelegramWebhookController {
     private final TransactionProcessingService transactionProcessingService;
     private final FinancialAdvisorService financialAdvisorService;
     private final CashTransactionParser cashTransactionParser;
-
-    private final ConcurrentHashMap<Long, Boolean> awaitingQuestion = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, Boolean> awaitingCashLog = new ConcurrentHashMap<>();
+    private final TelegramProperties telegramProperties;
 
     @PostMapping("/webhook")
-    public ResponseEntity<Void> receiveUpdate(@RequestBody TelegramUpdate update) {
+    public ResponseEntity<Void> receiveUpdate(
+            @RequestBody TelegramUpdate update,
+            @RequestHeader(value = "X-Telegram-Bot-Api-Secret-Token", required = false) String secretToken) {
+
+        // The webhook is permitAll in SecurityConfig (Telegram's servers call
+        // it), so the secret_token registered via setWebhook is the only
+        // thing proving a request really came from Telegram.
+        if (!isValidSecret(secretToken)) {
+            log.warn("Rejected webhook call with missing/invalid secret token");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        // Updates without a message (edited messages, channel posts,
+        // callback queries...) aren't handled - ack them so Telegram
+        // doesn't retry.
+        if (update == null || update.getMessage() == null || update.getMessage().getChat() == null) {
+            return ResponseEntity.ok().build();
+        }
+
         Long chatId = update.getMessage().getChat().getId();
         String text = update.getMessage().getText();
         Long messageId = update.getMessage().getMessageId();
@@ -151,6 +170,24 @@ public class TelegramWebhookController {
     private void handleForget(Long chatId) {
         financialAdvisorService.clearMemory(chatId);
         sendReplyMessage(chatId, "Conversation history cleared. Starting fresh!");
+    }
+
+    /**
+     * Constant-time comparison against the configured webhook secret. An
+     * empty/unset secret disables verification - only acceptable for local
+     * dev against the mock Telegram API.
+     */
+    private boolean isValidSecret(String secretToken) {
+        String expected = telegramProperties.getWebhookSecret();
+        if (expected == null || expected.isBlank()) {
+            return true;
+        }
+        if (secretToken == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8),
+                secretToken.getBytes(StandardCharsets.UTF_8));
     }
 
     public void sendReplyMessage(Long chatId, String text) {

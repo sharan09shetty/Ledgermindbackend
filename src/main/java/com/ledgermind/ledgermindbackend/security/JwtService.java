@@ -97,6 +97,12 @@ public class JwtService {
                     .parseSignedClaims(token)
                     .getPayload();
 
+
+            if (claims.get("purpose") != null) {
+                log.debug("Rejected purpose-scoped token used for authentication");
+                return null;
+            }
+
             return UUID.fromString(claims.getSubject());
         } catch (JwtException | IllegalArgumentException e) {
             log.debug("Invalid JWT: {}", e.getMessage());

@@ -53,10 +53,10 @@ public class TransactionController {
         return ResponseEntity.ok(toResponse(updated));
     }
 
-    @PostMapping("/{id}")
+    @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTransaction(@PathVariable UUID id){
-        transactionProcessingService.deleteTransaction(id);
-        return ResponseEntity.ok().build();
+        transactionProcessingService.deleteTransaction(SecurityUtils.currentUserId(), id);
+        return ResponseEntity.noContent().build();
     }
 
     private TransactionResponse toResponse(Transaction transaction) {

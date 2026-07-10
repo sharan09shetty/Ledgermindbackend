@@ -2,12 +2,11 @@ package com.ledgermind.ledgermindbackend.telegram.advisor;
 
 import com.ledgermind.ledgermindbackend.analytics.dto.*;
 import com.ledgermind.ledgermindbackend.analytics.service.AnalyticsService;
+import com.ledgermind.ledgermindbackend.common.TimeUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
-import org.springframework.context.annotation.Scope;
-import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -15,20 +14,18 @@ import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
-@Component
-@Scope("prototype")
+/**
+ * Not a Spring bean: one instance is created per advisor request so the
+ * userId can be final. A shared instance would let concurrent chats
+ * overwrite each other's userId and leak another user's data.
+ */
 @RequiredArgsConstructor
 @Slf4j
 public class FinancialAdvisorTools {
 
     private final AnalyticsService analyticsService;
 
-    private UUID userId;
-
-    public FinancialAdvisorTools forUser(UUID userId) {
-        this.userId = userId;
-        return this;
-    }
+    private final UUID userId;
 
     // ── Date helpers ──────────────────────────────────────────────────────────
 
@@ -52,7 +49,7 @@ public class FinancialAdvisorTools {
             @ToolParam(description = "4-digit year, e.g. 2026") Integer year,
             @ToolParam(description = "Month number 1-12") Integer month) {
 
-        YearMonth target = (year == null || month == null) ? YearMonth.now() : YearMonth.of(year, month);
+        YearMonth target = (year == null || month == null) ? YearMonth.now(TimeUtils.IST) : YearMonth.of(year, month);
         log.info("[FinancialAdvisor] tool=getMonthlySummary userId={} {}", userId, target);
         return analyticsService.getSummary(userId, startOf(target.getYear(), target.getMonthValue()), endOf(target.getYear(), target.getMonthValue()));
     }
@@ -67,7 +64,7 @@ public class FinancialAdvisorTools {
             @ToolParam(description = "4-digit year, e.g. 2026") Integer year,
             @ToolParam(description = "Month number 1-12") Integer month) {
 
-        YearMonth target = (year == null || month == null) ? YearMonth.now() : YearMonth.of(year, month);
+        YearMonth target = (year == null || month == null) ? YearMonth.now(TimeUtils.IST) : YearMonth.of(year, month);
         log.info("[FinancialAdvisor] tool=getCategoryBreakdown userId={} {}", userId, target);
         return analyticsService.getCategoryBreakdown(userId, startOf(target.getYear(), target.getMonthValue()), endOf(target.getYear(), target.getMonthValue()));
     }
@@ -83,7 +80,7 @@ public class FinancialAdvisorTools {
             @ToolParam(description = "Month number 1-12") Integer month,
             @ToolParam(description = "Number of top merchants to return, default 5") Integer topN) {
 
-        YearMonth target = (year == null || month == null) ? YearMonth.now() : YearMonth.of(year, month);
+        YearMonth target = (year == null || month == null) ? YearMonth.now(TimeUtils.IST) : YearMonth.of(year, month);
         int safeTopN = (topN == null) ? 5 : topN;
         log.info("[FinancialAdvisor] tool=getTopMerchants userId={} {} topN={}", userId, target, safeTopN);
         return analyticsService.getMerchantBreakdown(userId, startOf(target.getYear(), target.getMonthValue()), endOf(target.getYear(), target.getMonthValue()), safeTopN);
@@ -100,7 +97,7 @@ public class FinancialAdvisorTools {
             @ToolParam(description = "End year, e.g. 2026") Integer toYear,
             @ToolParam(description = "End month number 1-12") Integer toMonth) {
 
-        YearMonth now = YearMonth.now();
+        YearMonth now = YearMonth.now(TimeUtils.IST);
         YearMonth from = (fromYear == null || fromMonth == null) ? now.minusMonths(3) : YearMonth.of(fromYear, fromMonth);
         YearMonth to = (toYear == null || toMonth == null) ? now : YearMonth.of(toYear, toMonth);
         log.info("[FinancialAdvisor] tool=getSpendingTrend userId={} from={} to={}", userId, from, to);
@@ -130,8 +127,8 @@ public class FinancialAdvisorTools {
             @ToolParam(description = "Start date inclusive, format YYYY-MM-DD") String fromDate,
             @ToolParam(description = "End date inclusive, format YYYY-MM-DD") String toDate) {
 
-        LocalDate from = (fromDate != null) ? LocalDate.parse(fromDate) : LocalDate.now();
-        LocalDate to = (toDate != null) ? LocalDate.parse(toDate) : LocalDate.now();
+        LocalDate from = (fromDate != null) ? LocalDate.parse(fromDate) : TimeUtils.todayIst();
+        LocalDate to = (toDate != null) ? LocalDate.parse(toDate) : TimeUtils.todayIst();
 
         LocalDateTime fromDt = from.atStartOfDay();
         LocalDateTime toDt = to.atTime(23, 59, 59);
@@ -164,8 +161,8 @@ public class FinancialAdvisorTools {
             @ToolParam(description = "DEBIT or CREDIT. Null for both.") String transactionType,
             @ToolParam(description = "Max results to return, default 20, max 50") Integer limit) {
 
-        LocalDate from = (fromDate != null) ? LocalDate.parse(fromDate) : LocalDate.now();
-        LocalDate to = (toDate != null) ? LocalDate.parse(toDate) : LocalDate.now();
+        LocalDate from = (fromDate != null) ? LocalDate.parse(fromDate) : TimeUtils.todayIst();
+        LocalDate to = (toDate != null) ? LocalDate.parse(toDate) : TimeUtils.todayIst();
         int safeLimit = (limit == null) ? 20 : Math.min(limit, 50);
 
         LocalDateTime fromDt = from.atStartOfDay();

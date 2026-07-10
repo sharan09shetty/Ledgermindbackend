@@ -1,6 +1,7 @@
 package com.ledgermind.ledgermindbackend.ai.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ledgermind.ledgermindbackend.common.TimeUtils;
 import com.ledgermind.ledgermindbackend.email.entity.Transaction;
 import com.ledgermind.ledgermindbackend.email.enums.Category;
 import com.ledgermind.ledgermindbackend.email.enums.PaymentMode;
@@ -97,8 +98,8 @@ public class CashTransactionParser {
                 .paymentMode(PaymentMode.CASH)
                 .category(category)
                 .counterparty(result.counterparty())
-                .transactionTime(LocalDateTime.now())
-                .created(LocalDateTime.now())
+                .transactionTime(TimeUtils.nowIst())
+                .created(TimeUtils.nowIst())
                 .build();
 
         Transaction saved = transactionRepository.save(transaction);

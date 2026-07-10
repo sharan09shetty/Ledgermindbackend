@@ -16,7 +16,15 @@ public class CategorizationService {
     private final MerchantCategoryMappingRepository categoryMappingRepository;
 
     public Category categorize(Transaction transaction) {
-        return categoryMappingRepository.findById(transaction.getCounterparty())
+        String merchant = transaction.getCounterparty();
+
+        // No merchant extracted - nothing to look up or learn against, but
+        // the AI can still take a guess from amount/type.
+        if (merchant == null || merchant.isBlank()) {
+            return aiCategorizationService.categorize(transaction);
+        }
+
+        return categoryMappingRepository.findByUserIdAndMerchant(transaction.getUserId(), merchant)
                 .map(MerchantCategoryMapping::getCategory)
                 .orElseGet(() -> categorizeUsingAI(transaction));
     }
@@ -24,6 +32,7 @@ public class CategorizationService {
     public Category categorizeUsingAI(Transaction transaction) {
         Category category = aiCategorizationService.categorize(transaction);
         MerchantCategoryMapping mapping = MerchantCategoryMapping.builder()
+                .userId(transaction.getUserId())
                 .merchant(transaction.getCounterparty())
                 .category(category)
                 .build();

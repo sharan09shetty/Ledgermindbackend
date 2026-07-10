@@ -1,5 +1,7 @@
 package com.ledgermind.ledgermindbackend.telegram.advisor;
 
+import com.ledgermind.ledgermindbackend.analytics.service.AnalyticsService;
+import com.ledgermind.ledgermindbackend.common.TimeUtils;
 import com.ledgermind.ledgermindbackend.email.enums.Category;
 import com.ledgermind.ledgermindbackend.telegram.advisor.RedisChatMemoryStore.ChatMessage;
 import lombok.RequiredArgsConstructor;
@@ -10,7 +12,6 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -21,7 +22,7 @@ import java.util.UUID;
 public class FinancialAdvisorService {
 
     private final ChatClient chatClient;
-    private final FinancialAdvisorTools financialAdvisorTools;
+    private final AnalyticsService analyticsService;
     private final RedisChatMemoryStore memoryStore;
 
     private static final String SYSTEM_PROMPT = """
@@ -60,10 +61,10 @@ public class FinancialAdvisorService {
     public String ask(Long chatId, UUID userId, String question) {
         log.info("[FinancialAdvisor] chatId={} userId={} question={}", chatId, userId, question);
 
-        FinancialAdvisorTools tools = financialAdvisorTools.forUser(userId);
+        FinancialAdvisorTools tools = new FinancialAdvisorTools(analyticsService, userId);
 
         try {
-            String systemPrompt = SYSTEM_PROMPT.formatted(LocalDate.now(), Category.namesCsv());
+            String systemPrompt = SYSTEM_PROMPT.formatted(TimeUtils.todayIst(), Category.namesCsv());
 
             List<ChatMessage> history = memoryStore.load(chatId);
             List<Message> messages = toSpringAiMessages(history);

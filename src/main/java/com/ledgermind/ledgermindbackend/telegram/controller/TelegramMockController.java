@@ -4,12 +4,15 @@ import com.ledgermind.ledgermindbackend.telegram.dto.TelegramMessageRequest;
 import com.ledgermind.ledgermindbackend.telegram.dto.TelegramMessageResult;
 import com.ledgermind.ledgermindbackend.telegram.dto.TelegramSendMessageResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+// Stand-in for the Telegram Bot API in local dev (telegram.api-url points here).
 @RestController
+@Profile("local")
 @Slf4j
 @RequestMapping("/mock-telegram-api")
 public class TelegramMockController {

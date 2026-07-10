@@ -2,6 +2,7 @@ package com.ledgermind.ledgermindbackend.user.service;
 
 import com.ledgermind.ledgermindbackend.analytics.dto.DailyInsightResponse;
 import com.ledgermind.ledgermindbackend.analytics.service.AnalyticsService;
+import com.ledgermind.ledgermindbackend.common.TimeUtils;
 import com.ledgermind.ledgermindbackend.telegram.service.TelegramLinkService;
 import com.ledgermind.ledgermindbackend.telegram.service.TelegramService;
 import com.ledgermind.ledgermindbackend.user.entity.User;
@@ -28,8 +29,6 @@ import java.util.Optional;
 @Slf4j
 public class DailyInsightsSchedulerService {
 
-    private static final ZoneId IST = ZoneId.of("Asia/Kolkata");
-
     private final UserRepository userRepository;
     private final AnalyticsService analyticsService;
     private final TelegramService telegramService;
@@ -37,7 +36,7 @@ public class DailyInsightsSchedulerService {
 
     @Scheduled(cron = "${ledgermind.insights.cron:0 30 21 * * *}", zone = "Asia/Kolkata")
     public void sendDailyInsights() {
-        LocalDate today = LocalDate.now(IST);
+        LocalDate today = TimeUtils.todayIst();
         List<User> users = userRepository.findByActiveTrue();
         log.info("Sending daily insights to up to {} active users for {}", users.size(), today);
 

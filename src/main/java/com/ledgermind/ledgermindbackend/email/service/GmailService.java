@@ -51,15 +51,23 @@ public class GmailService {
             query += " after:" + epochSeconds;
         }
 
-        ListMessagesResponse response = gmailClient.users()
-                .messages()
-                .list("me")
-                .setQ(query)
-                .execute();
+        List<Message> messages = new ArrayList<>();
+        String pageToken = null;
+        do {
+            ListMessagesResponse response = gmailClient.users()
+                    .messages()
+                    .list("me")
+                    .setQ(query)
+                    .setPageToken(pageToken)
+                    .execute();
 
-        List<Message> messages = response.getMessages();
+            if (response.getMessages() != null) {
+                messages.addAll(response.getMessages());
+            }
+            pageToken = response.getNextPageToken();
+        } while (pageToken != null);
 
-        if (messages == null || messages.isEmpty()) {
+        if (messages.isEmpty()) {
             log.info("No new emails found for user {}", user.getId());
             return;
         }
@@ -70,7 +78,7 @@ public class GmailService {
         for (Message message : messages) {
 
             if (rawEmailRepository.existsByGmailMessageId(message.getId())) {
-                log.error("Skipping already-saved email gmailId={}", message.getId());
+                log.debug("Skipping already-saved email gmailId={}", message.getId());
                 continue;
             }
 

@@ -7,7 +7,6 @@ import com.ledgermind.ledgermindbackend.telegram.service.TelegramLinkService;
 import com.ledgermind.ledgermindbackend.user.dto.UserStatusResponse;
 import com.ledgermind.ledgermindbackend.user.entity.User;
 import com.ledgermind.ledgermindbackend.user.repository.UserRepository;
-import com.ledgermind.ledgermindbackend.user.service.UserScanSchedulerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,7 +18,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final UserScanSchedulerService userScanSchedulerService;
     private final UserRepository userRepository;
     private final BankRepository bankRepository;
     private final TelegramLinkService telegramLinkService;
@@ -55,12 +53,6 @@ public class UserController {
 
         boolean telegramLinked = telegramLinkService.isLinked(userId);
         return ResponseEntity.ok(toStatusResponse(user, telegramLinked));
-    }
-
-    // Internal dev trigger — consider removing or restricting in production
-    @PostMapping("/mock/test")
-    public void triggerScan() {
-        userScanSchedulerService.triggerScans();
     }
 
     private UserStatusResponse toStatusResponse(User user, boolean telegramLinked) {

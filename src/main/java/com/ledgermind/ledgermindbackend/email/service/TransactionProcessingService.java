@@ -1,5 +1,6 @@
 package com.ledgermind.ledgermindbackend.email.service;
 
+import com.ledgermind.ledgermindbackend.common.TimeUtils;
 import com.ledgermind.ledgermindbackend.email.entity.MerchantCategoryMapping;
 import com.ledgermind.ledgermindbackend.email.entity.RawEmail;
 import com.ledgermind.ledgermindbackend.email.entity.Transaction;
@@ -115,16 +116,22 @@ public class TransactionProcessingService {
         transaction.setCategory(category);
         transactionRepository.save(transaction);
 
-        categoryMappingRepository.save(MerchantCategoryMapping.builder()
-                .merchant(transaction.getCounterparty())
-                .category(category)
-                .build());
+        if (transaction.getCounterparty() != null && !transaction.getCounterparty().isBlank()) {
+            categoryMappingRepository.save(MerchantCategoryMapping.builder()
+                    .userId(user.getId())
+                    .merchant(transaction.getCounterparty())
+                    .category(category)
+                    .build());
+        }
 
         log.info("Updated category for merchant={} to {} (user={})", transaction.getCounterparty(), category, user.getId());
 
+        String counterpartyLabel = transaction.getCounterparty() != null
+                ? " with " + transaction.getCounterparty()
+                : "";
         telegramService.sendMessage(TelegramMessageRequest.builder()
                 .chat_id(chatId.toString())
-                .text("Category for transaction with " + transaction.getCounterparty() + " updated to " + category)
+                .text("Category for transaction" + counterpartyLabel + " updated to " + category)
                 .build());
     }
 
@@ -146,9 +153,9 @@ public class TransactionProcessingService {
         try {
             transactionTime = transactionTimeRaw != null
                     ? LocalDateTime.parse(transactionTimeRaw)
-                    : LocalDateTime.now();
+                    : TimeUtils.nowIst();
         } catch (Exception e) {
-            transactionTime = LocalDateTime.now();
+            transactionTime = TimeUtils.nowIst();
         }
 
         Transaction transaction = Transaction.builder()
@@ -159,7 +166,7 @@ public class TransactionProcessingService {
                 .category(category)
                 .counterparty(counterparty)
                 .transactionTime(transactionTime)
-                .created(LocalDateTime.now())
+                .created(TimeUtils.nowIst())
                 .build();
 
         return transactionRepository.save(transaction);
@@ -197,9 +204,12 @@ public class TransactionProcessingService {
         return saved;
     }
 
-    public void deleteTransaction(UUID transactionId) {
-        transactionRepository.deleteById(transactionId);
-        log.info("Deleted transaction id={})", transactionId);
+    public void deleteTransaction(UUID userId, UUID transactionId) {
+        Transaction transaction = transactionRepository.findByIdAndUserId(transactionId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Transaction not found: " + transactionId));
+        transactionRepository.delete(transaction);
+        log.info("Deleted transaction id={} (user={})", transactionId, userId);
     }
 
     private <E extends Enum<E>> E parseEnumOrDefault(Class<E> enumClass, String raw, E fallback) {

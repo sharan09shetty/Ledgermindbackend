@@ -35,3 +35,9 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Local secrets & OS junk ###
+src/main/resources/application-local.properties
+application-local.properties
+.DS_Store
+**/.DS_Store

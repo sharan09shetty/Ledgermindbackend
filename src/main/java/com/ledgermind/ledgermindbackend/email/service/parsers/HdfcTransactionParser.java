@@ -1,5 +1,6 @@
 package com.ledgermind.ledgermindbackend.email.service.parsers;
 
+import com.ledgermind.ledgermindbackend.common.TimeUtils;
 import com.ledgermind.ledgermindbackend.email.entity.RawEmail;
 import com.ledgermind.ledgermindbackend.email.entity.Transaction;
 import com.ledgermind.ledgermindbackend.email.enums.PaymentMode;
@@ -39,7 +40,7 @@ public class HdfcTransactionParser implements TransactionParser {
                 .referenceNumber(extractReference(body))
                 .counterparty(extractCounterparty(body))
                 .transactionTime(extractTransactionTime(body, email.getReceivedAt()))
-                .created(LocalDateTime.now())
+                .created(TimeUtils.nowIst())
                 .build();
     }
 
@@ -90,7 +91,7 @@ public class HdfcTransactionParser implements TransactionParser {
             DateTimeFormatter.ofPattern("d MMM[,] yyyy HH:mm:ss", Locale.ENGLISH);
 
     private static final ZoneId UTC_ZONE = ZoneId.of("UTC");
-    private static final ZoneId IST_ZONE = ZoneId.of("Asia/Kolkata");
+    private static final ZoneId IST_ZONE = TimeUtils.IST;
 
     private TransactionType determineTransactionType(String body) {
 
