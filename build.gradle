@@ -55,6 +55,7 @@ dependencyManagement {
         mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
         mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
         mavenBom "io.awspring.cloud:spring-cloud-aws-dependencies:${awsSpringCloudVersion}"
+        mavenBom "software.amazon.awssdk:bom:${awsSdkVersion}"
     }
 }
 
