@@ -50,6 +50,19 @@ public class UserController {
         return ResponseEntity.ok(toStatusResponse(user, telegramLinked));
     }
 
+    @PostMapping("/onboarding/complete")
+    public ResponseEntity<UserStatusResponse> completeOnboarding() {
+        UUID userId = SecurityUtils.currentUserId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        user.setOnboarded(true);
+        userRepository.save(user);
+
+        boolean telegramLinked = telegramLinkService.isLinked(userId);
+        return ResponseEntity.ok(toStatusResponse(user, telegramLinked));
+    }
+
     @GetMapping("/status")
     public ResponseEntity<UserStatusResponse> getStatus() {
         UUID userId = SecurityUtils.currentUserId();
@@ -70,6 +83,7 @@ public class UserController {
                 .gmailConnected(user.isGmailConnected())
                 .telegramLinked(telegramLinked)
                 .active(Boolean.TRUE.equals(user.getActive()))
+                .onboarded(Boolean.TRUE.equals(user.getOnboarded()))
                 .build();
     }
 }

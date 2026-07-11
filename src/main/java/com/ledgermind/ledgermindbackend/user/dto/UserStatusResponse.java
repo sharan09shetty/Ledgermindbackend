@@ -17,4 +17,5 @@ public class UserStatusResponse {
     private boolean gmailConnected;
     private boolean telegramLinked;
     private boolean active;
+    private boolean onboarded;
 }

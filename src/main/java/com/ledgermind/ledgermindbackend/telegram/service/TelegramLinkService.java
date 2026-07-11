@@ -58,9 +58,23 @@ public class TelegramLinkService {
      * given user and returns the Telegram deep link built from it.
      * Overwrites any previously-issued unclaimed token for this user, so
      * only the most recently requested link is ever valid.
+     * <p>
+     * Deliberately NOT @Transactional: two concurrent requests for the same
+     * user (double-fired client call, double click) can both see "no row yet"
+     * and race to insert it. The loser hits the unique constraint on user_id;
+     * we catch that and retry, which then finds the winner's committed row
+     * and simply overwrites its token.
      */
-    @Transactional
     public TelegramLinkResponse generateLinkToken(UUID userId) {
+        try {
+            return upsertLinkToken(userId);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            log.info("Concurrent Telegram link-token requests for userId={}, retrying as update", userId);
+            return upsertLinkToken(userId);
+        }
+    }
+
+    private TelegramLinkResponse upsertLinkToken(UUID userId) {
         String token = randomToken();
         LocalDateTime expiresAt = LocalDateTime.now().plus(TOKEN_TTL);
 
@@ -69,7 +83,7 @@ public class TelegramLinkService {
 
         link.setLinkToken(token);
         link.setLinkTokenExpiresAt(expiresAt);
-        telegramLinkRepository.save(link);
+        telegramLinkRepository.saveAndFlush(link);
 
         String deepLink = "https://t.me/" + telegramProperties.getBotUsername() + "?start=" + token;
         log.info("Generated Telegram link token for userId={}, expiresAt={}", userId, expiresAt);

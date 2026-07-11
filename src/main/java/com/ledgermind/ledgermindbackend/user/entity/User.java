@@ -27,6 +27,12 @@ public class User {
 
     private Boolean active;
 
+    // NOT NULL in the DB; @Builder.Default keeps builder-created users (e.g.
+    // first Google sign-in) from inserting an explicit NULL.
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean onboarded = false;
+
     @Column(name = "gmail_refresh_token", columnDefinition = "TEXT")
     private String gmailRefreshToken;
 
