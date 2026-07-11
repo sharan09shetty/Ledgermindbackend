@@ -50,7 +50,13 @@ Package root: `com.ledgermind.ledgermindbackend`. Feature-package layout
   `telegram-chat`, `telegram-cash-log`, `web-chat` (per-user).
 - `queue/` — SNS/SQS pipeline for raw email processing.
 - `ai/` — LLM config (Spring AI; the advisor uses the `chatChatClient` qualifier) and
-  cash-transaction parsing.
+  cash-transaction parsing. Providers are selected per task via `ai.categorization.provider`
+  / `ai.chat.provider`: `openai`, `gemini`, `ollama`, or `bedrock` (AWS Bedrock Converse API —
+  auth via the AWS credentials chain/IAM role, model IDs are `anthropic.`-prefixed Bedrock
+  IDs usually behind a cross-region inference profile like
+  `global.anthropic.claude-haiku-4-5-20251001-v1:0`; the model must be enabled under Bedrock
+  "Model access"). `AIConfig` maps provider name → Spring AI ChatModel bean name — new
+  providers need the starter dependency plus a map entry there.
 - `user/` — `User` entity + `/users/status`, `/users/bank`, `/users/onboarding/complete`.
 
 Conventions & gotchas:

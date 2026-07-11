@@ -20,12 +20,20 @@ import java.util.Map;
  *   ai.chat.provider           / ai.chat.model
  * </pre>
  *
- * Provider is one of {@code openai}, {@code gemini}, {@code ollama}. Each
- * corresponds to a Spring-AI auto-configured {@link ChatModel} bean; only the
- * providers whose API keys/config are present actually get a bean, so an
- * unconfigured provider fails fast here with a clear message rather than at
- * first call. Leaving the model blank uses that provider's default model from
- * its {@code spring.ai.<provider>.chat.options.model} property.
+ * Provider is one of {@code openai}, {@code gemini}, {@code ollama},
+ * {@code bedrock}. Each corresponds to a Spring-AI auto-configured
+ * {@link ChatModel} bean; only the providers whose API keys/config are present
+ * actually get a bean, so an unconfigured provider fails fast here with a
+ * clear message rather than at first call. Leaving the model blank uses that
+ * provider's default model from its
+ * {@code spring.ai.<provider>.chat.options.model} property.
+ *
+ * <p>{@code bedrock} uses the AWS Bedrock Converse API (tool calling
+ * supported) and authenticates via the standard AWS credentials chain — an
+ * IAM role when deployed on AWS, env vars / profile locally. Bedrock model
+ * IDs are the {@code anthropic.}-prefixed native IDs, usually behind a
+ * cross-region inference profile (e.g.
+ * {@code global.anthropic.claude-haiku-4-5-20251001-v1:0}).
  */
 @Configuration
 @Slf4j
@@ -35,7 +43,8 @@ public class AIConfig {
     private static final Map<String, String> PROVIDER_BEAN_NAMES = Map.of(
             "openai", "openAiChatModel",
             "gemini", "googleGenAiChatModel",
-            "ollama", "ollamaChatModel"
+            "ollama", "ollamaChatModel",
+            "bedrock", "bedrockProxyChatModel"
     );
 
     @Bean
