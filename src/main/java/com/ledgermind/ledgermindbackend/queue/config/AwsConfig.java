@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sns.SnsClient;
@@ -28,15 +30,23 @@ public class AwsConfig {
     @Value("${aws.secret-access-key:test}")
     private String secretAccessKey;
 
+    private boolean isLocalEndpoint() {
+        return endpointOverride != null && !endpointOverride.isBlank();
+    }
+
+    private AwsCredentialsProvider credentialsProvider() {
+        return isLocalEndpoint()
+                ? StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKeyId, secretAccessKey))
+                : DefaultCredentialsProvider.create();
+    }
+
     @Bean
     public SqsAsyncClient sqsAsyncClient() {
         var builder = SqsAsyncClient.builder()
                 .region(Region.of(region))
-                .credentialsProvider(
-                        StaticCredentialsProvider.create(
-                                AwsBasicCredentials.create(accessKeyId, secretAccessKey)));
+                .credentialsProvider(credentialsProvider());
 
-        if (endpointOverride != null) {
+        if (isLocalEndpoint()) {
             builder.endpointOverride(URI.create(endpointOverride));
         }
 
@@ -47,11 +57,9 @@ public class AwsConfig {
     public SnsClient snsClient() {
         var builder = SnsClient.builder()
                 .region(Region.of(region))
-                .credentialsProvider(
-                        StaticCredentialsProvider.create(
-                                AwsBasicCredentials.create(accessKeyId, secretAccessKey)));
+                .credentialsProvider(credentialsProvider());
 
-        if (endpointOverride != null) {
+        if (isLocalEndpoint()) {
             builder.endpointOverride(URI.create(endpointOverride));
         }
 
