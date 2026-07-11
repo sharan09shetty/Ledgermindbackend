@@ -1,6 +1,6 @@
 FROM gradle:8.10-jdk21 AS build
 WORKDIR /app
-COPY build.gradle settings.gradle ./
+COPY build.gradle settings.gradle gradle.properties ./
 COPY gradle ./gradle
 COPY gradlew ./
 RUN chmod +x gradlew
