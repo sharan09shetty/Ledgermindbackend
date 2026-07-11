@@ -22,6 +22,7 @@ public class RateLimitProperties {
 
     private Limit telegramChat = new Limit(20, Duration.ofMinutes(1));
     private Limit telegramCashLog = new Limit(15, Duration.ofMinutes(1));
+    private Limit webChat = new Limit(10, Duration.ofMinutes(1));
 
     @Getter
     @Setter
