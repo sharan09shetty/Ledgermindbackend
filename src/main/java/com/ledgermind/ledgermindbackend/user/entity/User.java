@@ -36,6 +36,9 @@ public class User {
     @Column(name = "gmail_refresh_token", columnDefinition = "TEXT")
     private String gmailRefreshToken;
 
+    // UI theme preference (light | dark | midnight); null = client default
+    private String theme;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "bank_code", referencedColumnName = "code")
     private Bank bank;

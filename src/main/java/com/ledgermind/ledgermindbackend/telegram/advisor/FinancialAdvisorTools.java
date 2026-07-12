@@ -42,6 +42,8 @@ public class FinancialAdvisorTools {
     @Tool(description = """
             Get a financial summary for a given month: total debits, total credits,
             net (credit - debit), transaction count, top spending category, and top merchant.
+            The totals cover ALL categories combined — do NOT use this to answer how much
+            was spent on one specific category (use getCategoryBreakdown for that).
             Use for: 'how much did I spend this month?', 'what's my summary for June?'.
             If no month/year provided, use the current month.
             """)
@@ -57,7 +59,10 @@ public class FinancialAdvisorTools {
     @Tool(description = """
             Get spending breakdown by category for a given month.
             Returns each category with total spend, transaction count, and percentage share.
-            Use for: 'what did I spend on food last month?', 'show spending by category'.
+            This is THE tool for any question about a specific category's spend
+            ('how much did I spend on food?', 'what did groceries cost me last month?')
+            — read that category's row from the result.
+            Also use for: 'show spending by category', 'where does my money go?'.
             If no month/year provided, use the current month.
             """)
     public List<CategoryBreakdownItem> getCategoryBreakdown(
@@ -107,9 +112,13 @@ public class FinancialAdvisorTools {
     @Tool(description = """
             Get total spend (debit), total received (credit), net, transaction count,
             top category and top merchant for a specific day or date range (inclusive).
-            
-            ALWAYS use this tool first when the user asks how much they spent/received over
-            a specific day or date range, e.g.:
+
+            The totals cover ALL categories combined. This tool CANNOT answer how much was
+            spent on a single category — for that use getCategoryBreakdown (whole months)
+            or getTransactionsByDateRange with a category filter (partial ranges).
+
+            ALWAYS use this tool first when the user asks how much they spent/received
+            OVERALL over a specific day or date range, e.g.:
             - 'how much did I spend yesterday?' → fromDate = yesterday, toDate = yesterday
             - 'how much today?' → fromDate = today, toDate = today
             - 'last 3 days spending' → fromDate = 3 days ago, toDate = today

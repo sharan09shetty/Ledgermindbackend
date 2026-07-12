@@ -18,4 +18,5 @@ public class UserStatusResponse {
     private boolean telegramLinked;
     private boolean active;
     private boolean onboarded;
+    private String theme;
 }

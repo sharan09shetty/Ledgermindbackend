@@ -31,12 +31,14 @@ public class CategorizationService {
 
     public Category categorizeUsingAI(Transaction transaction) {
         Category category = aiCategorizationService.categorize(transaction);
-        MerchantCategoryMapping mapping = MerchantCategoryMapping.builder()
-                .userId(transaction.getUserId())
-                .merchant(transaction.getCounterparty())
-                .category(category)
-                .build();
-        categoryMappingRepository.save(mapping);
+        if (category != Category.OTHER) {
+            MerchantCategoryMapping mapping = MerchantCategoryMapping.builder()
+                    .userId(transaction.getUserId())
+                    .merchant(transaction.getCounterparty())
+                    .category(category)
+                    .build();
+            categoryMappingRepository.save(mapping);
+        }
         return category;
     }
 }

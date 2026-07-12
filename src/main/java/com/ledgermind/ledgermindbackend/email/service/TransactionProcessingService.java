@@ -65,7 +65,16 @@ public class TransactionProcessingService {
             throw new RuntimeException("No parser found for sender: " + email.getSender());
         }
 
+        if (email.getId() != null && transactionRepository.existsByRawEmailId(email.getId())) {
+            log.info("Transaction already exists for rawEmailId={}, skipping duplicate delivery", email.getId());
+            return;
+        }
+
         Transaction transaction = parser.get().parse(email);
+        if (transaction == null) {
+            log.info("Email rawEmailId={} is not an actual transaction (e.g. upcoming e-mandate notice), skipping", email.getId());
+            return;
+        }
         transaction.setRawEmailId(email.getId());
         Category category = categorizationService.categorize(transaction);
         transaction.setCategory(category);

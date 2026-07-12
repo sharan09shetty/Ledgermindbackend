@@ -50,6 +50,26 @@ public class UserController {
         return ResponseEntity.ok(toStatusResponse(user, telegramLinked));
     }
 
+    private static final java.util.Set<String> ALLOWED_THEMES = java.util.Set.of("light", "dark", "midnight");
+
+    @PatchMapping("/theme")
+    public ResponseEntity<UserStatusResponse> setTheme(@RequestParam String name) {
+        UUID userId = SecurityUtils.currentUserId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        String normalized = name.trim().toLowerCase();
+        if (!ALLOWED_THEMES.contains(normalized)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown theme: " + name);
+        }
+
+        user.setTheme(normalized);
+        userRepository.save(user);
+
+        boolean telegramLinked = telegramLinkService.isLinked(userId);
+        return ResponseEntity.ok(toStatusResponse(user, telegramLinked));
+    }
+
     @PostMapping("/onboarding/complete")
     public ResponseEntity<UserStatusResponse> completeOnboarding() {
         UUID userId = SecurityUtils.currentUserId();
@@ -84,6 +104,7 @@ public class UserController {
                 .telegramLinked(telegramLinked)
                 .active(Boolean.TRUE.equals(user.getActive()))
                 .onboarded(Boolean.TRUE.equals(user.getOnboarded()))
+                .theme(user.getTheme())
                 .build();
     }
 }

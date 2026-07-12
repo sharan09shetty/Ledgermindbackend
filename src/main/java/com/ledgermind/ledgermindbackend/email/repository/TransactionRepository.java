@@ -11,5 +11,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     Optional<Transaction> findByIdAndUserId(UUID id, UUID userId);
 
+    boolean existsByRawEmailId(UUID rawEmailId);
+
     void deleteById(UUID id);
 }

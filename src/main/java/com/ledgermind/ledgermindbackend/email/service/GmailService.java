@@ -141,6 +141,11 @@ public class GmailService {
 
     private boolean isTransactionEmail(String body) {
         String content = body.toLowerCase();
+
+        if (content.contains("upcoming e-mandate") || content.contains("will be debited")) {
+            return false;
+        }
+
         return content.contains("credited")
                 || content.contains("debited")
                 || content.contains("upi transaction reference")

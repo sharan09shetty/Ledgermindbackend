@@ -18,6 +18,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.UUID;
 
@@ -197,6 +199,9 @@ public class GoogleAuthController {
         }
 
         user.setGmailRefreshToken(tokenResponse.getRefreshToken());
+        if (user.getLastEmailSyncTime() == null) {
+            user.setLastEmailSyncTime(LocalDateTime.now(ZoneOffset.UTC));
+        }
         if (user.isReadyForScanning()) {
             user.setActive(true);
         }

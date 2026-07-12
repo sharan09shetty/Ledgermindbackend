@@ -15,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
@@ -76,7 +78,8 @@ public class TelegramLinkService {
 
     private TelegramLinkResponse upsertLinkToken(UUID userId) {
         String token = randomToken();
-        LocalDateTime expiresAt = LocalDateTime.now().plus(TOKEN_TTL);
+        Instant expiresAtInstant = Instant.now().plus(TOKEN_TTL);
+        LocalDateTime expiresAt = LocalDateTime.ofInstant(expiresAtInstant, ZoneId.systemDefault());
 
         TelegramLink link = telegramLinkRepository.findByUserId(userId)
                 .orElseGet(() -> TelegramLink.builder().userId(userId).build());
@@ -86,8 +89,8 @@ public class TelegramLinkService {
         telegramLinkRepository.saveAndFlush(link);
 
         String deepLink = "https://t.me/" + telegramProperties.getBotUsername() + "?start=" + token;
-        log.info("Generated Telegram link token for userId={}, expiresAt={}", userId, expiresAt);
-        return new TelegramLinkResponse(deepLink, expiresAt);
+        log.info("Generated Telegram link token for userId={}, expiresAt={}", userId, expiresAtInstant);
+        return new TelegramLinkResponse(deepLink, expiresAtInstant);
     }
 
     /**

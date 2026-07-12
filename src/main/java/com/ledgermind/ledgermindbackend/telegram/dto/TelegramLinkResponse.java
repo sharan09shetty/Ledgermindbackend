@@ -1,6 +1,11 @@
 package com.ledgermind.ledgermindbackend.telegram.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
-public record TelegramLinkResponse(String deepLink, LocalDateTime expiresAt) {
+/**
+ * expiresAt is an Instant (serialized as ISO-8601 with a Z offset) rather
+ * than a LocalDateTime: the server's zone-less wall-clock time is ambiguous
+ * to browsers in other zones and made fresh links look already expired.
+ */
+public record TelegramLinkResponse(String deepLink, Instant expiresAt) {
 }

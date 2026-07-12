@@ -31,6 +31,11 @@ public class HdfcTransactionParser implements TransactionParser {
     @Override
     public Transaction parse(RawEmail email) {
         String body = email.getBody();
+
+        if (!isActualTransaction(body)) {
+            return null;
+        }
+
         return Transaction.builder()
                 .userId(email.getUserId())
                 .rawEmailId(email.getId())
@@ -58,9 +63,28 @@ public class HdfcTransactionParser implements TransactionParser {
                     Pattern.CASE_INSENSITIVE
             );
 
+    // Older wording: "Your UPI transaction reference number is 649320323376"
+    private static final Pattern UPI_REFERENCE_SENTENCE_PATTERN =
+            Pattern.compile(
+                    "UPI\\s+transaction\\s+reference\\s+number\\s+is\\s+(\\d+)",
+                    Pattern.CASE_INSENSITIVE
+            );
+
     private static final Pattern SENDER_PATTERN =
             Pattern.compile(
                     "Sender:\\s*([^\\(\\n]+)",
+                    Pattern.CASE_INSENSITIVE
+            );
+
+    private static final Pattern UPI_VPA_NAME_PATTERN =
+            Pattern.compile(
+                    "(?:to|by)\\s+VPA\\s+\\S+\\s+([A-Za-z][A-Za-z0-9 .&'_-]*?)\\s+on\\s+\\d{2}-\\d{2}-\\d{2,4}",
+                    Pattern.CASE_INSENSITIVE
+            );
+
+    private static final Pattern UPI_VPA_ONLY_PATTERN =
+            Pattern.compile(
+                    "(?:to|by)\\s+VPA\\s+(\\S+@\\S+)",
                     Pattern.CASE_INSENSITIVE
             );
 
@@ -71,13 +95,13 @@ public class HdfcTransactionParser implements TransactionParser {
 
     private static final Pattern CHEQUE_DEPOSIT_PATTERN =
             Pattern.compile(
-                    "from\\s+(.+?)\\s+on\\s+\\d{2}-[A-Z]{3}-\\d{4}",
+                    "deposited\\s+in\\s+your\\s+A/c\\s+ending\\s+\\S+\\s+from\\s+(.+?)\\s+on\\s+\\d{2}-[A-Za-z]{3}-\\d{4}",
                     Pattern.CASE_INSENSITIVE
             );
 
     private static final Pattern CC_MERCHANT_PATTERN =
             Pattern.compile(
-                    "towards\\s+([A-Z0-9 _&'./-]+?)\\s+on\\s+\\d{2}\\s+[A-Za-z]{3}",
+                    "towards\\s+([A-Z0-9 _&'./*-]+?)\\s+on\\s+\\d{1,2}\\s+[A-Za-z]{3}",
                     Pattern.CASE_INSENSITIVE
             );
 
@@ -166,11 +190,25 @@ public class HdfcTransactionParser implements TransactionParser {
         return BigDecimal.ZERO;
     }
 
+    /**
+     * Alert emails that are not actual money movements — e.g. "There is an
+     * upcoming E-mandate (Auto payment) of INR 199.00 for NETFLIX. Amount
+     * will be debited ... on 02/02/2026" — must not become transactions.
+     */
+    private boolean isActualTransaction(String body) {
+        String content = body.toLowerCase();
+        return !content.contains("upcoming e-mandate")
+                && !content.contains("will be debited");
+    }
+
     private String extractReference(String body) {
 
-        Matcher matcher =
-                UPI_REFERENCE_PATTERN.matcher(body);
+        Matcher matcher = UPI_REFERENCE_PATTERN.matcher(body);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
 
+        matcher = UPI_REFERENCE_SENTENCE_PATTERN.matcher(body);
         if (matcher.find()) {
             return matcher.group(1);
         }
@@ -178,6 +216,11 @@ public class HdfcTransactionParser implements TransactionParser {
         return null;
     }
 
+    /**
+     * Most-specific templates first; the bare parenthesis fallback goes last
+     * because it happily matches boilerplate like "(Toll-free, across India)"
+     * when a more specific template exists.
+     */
     private String extractCounterparty(String body) {
 
         Matcher ccMatcher = CC_MERCHANT_PATTERN.matcher(body);
@@ -185,25 +228,29 @@ public class HdfcTransactionParser implements TransactionParser {
             return ccMatcher.group(1).trim();
         }
 
-        Matcher senderMatcher =
-                SENDER_PATTERN.matcher(body);
-
+        Matcher senderMatcher = SENDER_PATTERN.matcher(body);
         if (senderMatcher.find()) {
             return senderMatcher.group(1).trim();
         }
 
-        Matcher merchantMatcher =
-                VPA_MERCHANT_PATTERN.matcher(body);
+        Matcher vpaNameMatcher = UPI_VPA_NAME_PATTERN.matcher(body);
+        if (vpaNameMatcher.find()) {
+            return vpaNameMatcher.group(1).trim();
+        }
 
+        Matcher chequeMatcher = CHEQUE_DEPOSIT_PATTERN.matcher(body);
+        if (chequeMatcher.find()) {
+            return chequeMatcher.group(1).trim();
+        }
+
+        Matcher merchantMatcher = VPA_MERCHANT_PATTERN.matcher(body);
         if (merchantMatcher.find()) {
             return merchantMatcher.group(1).trim();
         }
 
-        Matcher chequeMatcher =
-                CHEQUE_DEPOSIT_PATTERN.matcher(body);
-
-        if (chequeMatcher.find()) {
-            return chequeMatcher.group(1).trim();
+        Matcher vpaOnlyMatcher = UPI_VPA_ONLY_PATTERN.matcher(body);
+        if (vpaOnlyMatcher.find()) {
+            return vpaOnlyMatcher.group(1).trim();
         }
 
         return null;
