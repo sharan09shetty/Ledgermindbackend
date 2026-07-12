@@ -2,6 +2,7 @@ package com.ledgermind.ledgermindbackend.ai.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.beans.factory.annotation.Value;
@@ -86,6 +87,8 @@ public class AIConfig {
         if (modelOverride != null && !modelOverride.isBlank()) {
             builder.defaultOptions(ChatOptions.builder().model(modelOverride.trim()).build());
         }
+
+        builder.defaultAdvisors(new SimpleLoggerAdvisor());
 
         log.info("AI {} client → provider={}, model={}", role, normalized,
                 (modelOverride == null || modelOverride.isBlank()) ? "<provider default>" : modelOverride.trim());

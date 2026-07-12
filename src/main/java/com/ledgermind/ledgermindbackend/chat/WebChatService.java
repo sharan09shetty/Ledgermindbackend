@@ -75,6 +75,10 @@ public class WebChatService {
             - If a tool returns no data for the requested period, say so plainly.
             - If you realise a previous answer was wrong, correct it briefly without
               over-apologising, and never repeat a correction you already made.
+            - NEVER tell the user you can't fetch or access their data unless a tool
+              call actually failed in THIS turn. Error or apology messages earlier in
+              the conversation are history, not the current state — always attempt
+              the tool call for the current question.
 
             Style:
             - Be concise: short paragraphs or tight bullet lists, no long essays.
@@ -98,6 +102,7 @@ public class WebChatService {
         List<ChatEntry> history = memoryStore.load(userId);
 
         String reply;
+        boolean failed = false;
         try {
             String systemPrompt = SYSTEM_PROMPT.formatted(
                     userName != null && !userName.isBlank() ? userName : "the user",
@@ -114,21 +119,27 @@ public class WebChatService {
                     .call()
                     .content());
 
-            log.info("[WebChat] userId={} response={}", userId, reply);
+            // toolCalls=0 on a data question means the model answered without
+            // fetching anything — the signature of a hallucinated reply
+            log.info("[WebChat] userId={} toolCalls={} response={}", userId, tools.invocationCount(), reply);
 
             if (reply == null || reply.isBlank()) {
                 reply = "Sorry, I couldn't put together an answer just now. Please try again.";
+                failed = true;
             }
         } catch (Exception e) {
             log.error("[WebChat] Failed to process question for userId={}", userId, e);
             reply = "Sorry, I ran into an issue fetching your data. Please try again in a moment.";
+            failed = true;
         }
 
-        long now = System.currentTimeMillis();
-        history.add(new ChatEntry("user", question, now));
         ChatEntry assistantEntry = new ChatEntry("assistant", reply, System.currentTimeMillis());
-        history.add(assistantEntry);
-        memoryStore.save(userId, history);
+
+        if (!failed) {
+            history.add(new ChatEntry("user", question, System.currentTimeMillis()));
+            history.add(assistantEntry);
+            memoryStore.save(userId, history);
+        }
 
         return assistantEntry;
     }

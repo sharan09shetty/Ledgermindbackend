@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Not a Spring bean: one instance is created per advisor request so the
@@ -26,6 +27,12 @@ public class FinancialAdvisorTools {
     private final AnalyticsService analyticsService;
 
     private final UUID userId;
+
+    private final AtomicInteger invocations = new AtomicInteger();
+
+    public int invocationCount() {
+        return invocations.get();
+    }
 
     // ── Date helpers ──────────────────────────────────────────────────────────
 
@@ -52,6 +59,7 @@ public class FinancialAdvisorTools {
             @ToolParam(description = "Month number 1-12") Integer month) {
 
         YearMonth target = (year == null || month == null) ? YearMonth.now(TimeUtils.IST) : YearMonth.of(year, month);
+        invocations.incrementAndGet();
         log.info("[FinancialAdvisor] tool=getMonthlySummary userId={} {}", userId, target);
         return analyticsService.getSummary(userId, startOf(target.getYear(), target.getMonthValue()), endOf(target.getYear(), target.getMonthValue()));
     }
@@ -70,6 +78,7 @@ public class FinancialAdvisorTools {
             @ToolParam(description = "Month number 1-12") Integer month) {
 
         YearMonth target = (year == null || month == null) ? YearMonth.now(TimeUtils.IST) : YearMonth.of(year, month);
+        invocations.incrementAndGet();
         log.info("[FinancialAdvisor] tool=getCategoryBreakdown userId={} {}", userId, target);
         return analyticsService.getCategoryBreakdown(userId, startOf(target.getYear(), target.getMonthValue()), endOf(target.getYear(), target.getMonthValue()));
     }
@@ -87,6 +96,7 @@ public class FinancialAdvisorTools {
 
         YearMonth target = (year == null || month == null) ? YearMonth.now(TimeUtils.IST) : YearMonth.of(year, month);
         int safeTopN = (topN == null) ? 5 : topN;
+        invocations.incrementAndGet();
         log.info("[FinancialAdvisor] tool=getTopMerchants userId={} {} topN={}", userId, target, safeTopN);
         return analyticsService.getMerchantBreakdown(userId, startOf(target.getYear(), target.getMonthValue()), endOf(target.getYear(), target.getMonthValue()), safeTopN);
     }
@@ -105,6 +115,7 @@ public class FinancialAdvisorTools {
         YearMonth now = YearMonth.now(TimeUtils.IST);
         YearMonth from = (fromYear == null || fromMonth == null) ? now.minusMonths(3) : YearMonth.of(fromYear, fromMonth);
         YearMonth to = (toYear == null || toMonth == null) ? now : YearMonth.of(toYear, toMonth);
+        invocations.incrementAndGet();
         log.info("[FinancialAdvisor] tool=getSpendingTrend userId={} from={} to={}", userId, from, to);
         return analyticsService.getMonthlyBreakdown(userId, startOf(from.getYear(), from.getMonthValue()), endOf(to.getYear(), to.getMonthValue()));
     }
@@ -142,6 +153,7 @@ public class FinancialAdvisorTools {
         LocalDateTime fromDt = from.atStartOfDay();
         LocalDateTime toDt = to.atTime(23, 59, 59);
 
+        invocations.incrementAndGet();
         log.info("[FinancialAdvisor] tool=getSpendingSummaryForDateRange userId={} from={} to={}", userId, fromDt, toDt);
         return analyticsService.getSummary(userId, fromDt, toDt);
     }
@@ -177,6 +189,7 @@ public class FinancialAdvisorTools {
         LocalDateTime fromDt = from.atStartOfDay();
         LocalDateTime toDt = to.atTime(23, 59, 59);
 
+        invocations.incrementAndGet();
         log.info("[FinancialAdvisor] tool=getTransactionsByDateRange userId={} from={} to={} category={} merchant={} type={} limit={}",
                 userId, fromDt, toDt, category, merchant, transactionType, safeLimit);
 

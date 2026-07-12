@@ -62,6 +62,10 @@ public class FinancialAdvisorService {
               For "how much did I spend on <category>", use getCategoryBreakdown and read
               that category's row.
             - If a tool returns no data, say "I couldn't find any transactions for that period."
+            - NEVER tell the user you can't fetch or access their data unless a tool
+              call actually failed in THIS turn. Error or apology messages earlier in
+              the conversation are history, not the current state — always attempt
+              the tool call for the current question.
 
             Behaviour:
             - If the user doesn't specify a month, assume the current month; calculate
@@ -96,7 +100,7 @@ public class FinancialAdvisorService {
                     .call()
                     .content());
 
-            log.info("[FinancialAdvisor] chatId={} response={}", chatId, response);
+            log.info("[FinancialAdvisor] chatId={} toolCalls={} response={}", chatId, tools.invocationCount(), response);
 
             if (response == null || response.isBlank()) {
                 return "Sorry, I couldn't put together an answer just now. Please try again.";
